@@ -1,13 +1,15 @@
 define([
   , 'Atem-Errors/errors'
-] function(
+], function(
     atemErrors
 ) {
-    var errors = {}
-      , makeError = AtemErrors.makeError.bind(null, errors)
+    var errors = Object.create(atemErrors)
+      , makeError = atemErrors.makeError.bind(null, errors)
       ;
 
-    makeError('BEOM', undefined, atemErrors.Error);
+    makeError('BEOM', undefined, errors.Error);
+    makeError('Font', undefined, errors.BEOM);
+
 
     return errors;
 });
