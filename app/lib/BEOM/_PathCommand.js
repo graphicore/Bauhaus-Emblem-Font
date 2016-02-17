@@ -1,7 +1,7 @@
 define([
-  , 'BEF/errors'
+    'BEF/errors'
   , 'Atem-CPS/OMA/_Node'
-] function(
+], function(
     Parent
   , errors
 ) {
@@ -10,6 +10,7 @@ define([
     var BEOMError = errors.BEOM;
 
     function _PathCommand() {
+        // jshint validthis:true
         Parent.call(this);
         if(this.constructor.prototype === _p)
             throw new BEOMError('BEOM _PathCommand must not be instantiated '

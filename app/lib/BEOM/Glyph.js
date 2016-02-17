@@ -1,7 +1,7 @@
 define([
     'Atem-CPS/OMA/_Node'
   , './_PathCommand'
-] function(
+], function(
     Parent
   , _PathCommand
 ) {
