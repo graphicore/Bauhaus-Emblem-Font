@@ -1,5 +1,5 @@
 define([
-  , 'Atem-Errors/errors'
+    'Atem-Errors/errors'
 ], function(
     atemErrors
 ) {
