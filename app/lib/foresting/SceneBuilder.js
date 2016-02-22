@@ -1,10 +1,8 @@
 define([
-    'Atem-CPS/OMA/_Node'
-  , 'BEF/BEOM/Line'
+    'BEF/BEOM/Line'
   , 'BEF/BEOM/Glyph'
 ], function(
-    Parent
-  , Line
+    Line
   , Glyph
 ) {
     "use strict";
@@ -20,35 +18,9 @@ define([
 
     var _p = SceneBuilder.prototype;
 
-    /**
-     * FIXME: old behavior was reset the text, but keep the lines and their
-     * configuration But that is hard. Maybe we can do some sort of diff
-     * update if speed becomes a matter.
-     *
-     * Do we need it this grained? We could just dump the whole scene at once
-     */
-    _p.reset = function() {
-        // FIXME: This is a memory leak! The removed nodes never get removed
-        // from the OMA-Controller. Maybe a Weakmap could help there. Or we
-        // need an official way to "erase" them. Probably smart, because then
-        // we can trigger an event to inform all the dependent style dicts.
-        // That event should probably be triggered on "remove" already, as
-        // the node then is selectable anymore, hence, it can't hav deps via
-        // CPS.
-        // At the moment "node.remove" can be considered broken. This will
-        // be one of the tasks for the next weeks.
-        function eraseChildren(node) {
-            var children = node.children.reverse()
-              , i, l
-              ;
-            for(i=0,l=children.length;i<l;i++)
-                node.remove(children[i]);
-        }
-        eraseChildren(this._scene);
-    };
-
     _p._set = function(line, verticalPosition, glyphId) {
-        var glyph = new Glyph()
+        var glyph
+          , referenceGlyph
           , verticalAdvance
           // If we use CPS to control this it would also be a way to return
           // +Infinity. And that is a good start for a never ending spiral line
@@ -57,17 +29,29 @@ define([
           ;
         // We'll make a lot of duplicates per glyph. There's not yet a
         // smarter way in OMA (metacomponents FTW …)
-        this._font.drawGlyph(glyphId, glyph);
-        line.add(glyph);
+        // It could be a wise idea for speed to implement fast id fetching
+        // in OMA and SelectorEngine.
+        // SelectorEngine is probably hard, but an id index in OMA
+        // would be great here.
+        // For a short term relief, we could make it just for font.
+        // Is probably a good idea to collect some experience with this anyways.
+        referenceGlyph = line.root.font.query('glyph#' + glyphId);
+        glyph = referenceGlyph.clone(false);
+        // can't use the glyph id here, because there will be duplicates
+        glyph.id = null;
+        // this is a bit experimental but should work out just fine
+        // referenceNode is in the _cps_whitelist of Glyph.
+        // It's also kind of a nice approaching of the yet to come metacomponents
+        glyph.referenceNode = referenceGlyph;
+        line.add(glyph)
 
-        // no we can get the verticalAdvance from CPS
+        // now we can get the verticalAdvance from CPS
         verticalAdvance = glyph.getComputedStyle().get('verticalAdvance');
         // TODO: add kerning
-        if(verticalAdvance + verticalPosition > maxLineLength){
+        if(verticalAdvance + verticalPosition > maxLineLength) {
             line.remove(glyph);
             throw new LineIsFullError(['Line is full at "', glyphId , '" (', line.children.length, ')'].join(''));
         }
-
         return verticalAdvance;
     };
 
@@ -110,7 +94,7 @@ define([
                 token = text.substr(index, len);
                 if(!this._font.has(token))
                     continue;
-                glyphs.push(token);
+                glyphs.push(this._font.getId(token));
                 index += len;
                 continue tokenizer;
             }
@@ -131,7 +115,7 @@ define([
           ;
         for(i=0,l=glyphs.length;i<l;) {
             line = new Line();
-            this._scene.add(line);
+            scene.add(line);
             consumed = this.setLine(line, glyphs, i);
             if(!consumed) {
                 // If consumed is 0 we may never finish.
