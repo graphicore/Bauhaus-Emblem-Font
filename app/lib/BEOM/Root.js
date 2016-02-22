@@ -1,26 +1,36 @@
 define([
     'Atem-CPS/OMA/_Root'
   , './Scene'
+  , './Font'
 ], function(
     Parent
   , Scene
+  , Font
 ) {
     "use strict";
 
-    function Root(controller, scene /* optional */) {
+    function Root(controller, font /* optional */, scene /* optional */) {
         Parent.call(this, controller);
 
         this.add(scene || new Scene()); // 0
+        this.add(font || new Font()); // 1
         Object.freeze(this._children);
     }
     var _p = Root.prototype = Object.create(Parent.prototype);
     _p.constructor = Root;
 
-    _p._acceptedChildren = [Scene];
+    function factory(controller, scene, font) {
+        return new Root(controller, scene, font);
+    }
+    Root.factory = factory;
+
+    _p._acceptedChildren = [Scene, Font];
 
     _p._cps_whitelist = {
-      , scene: 'scene'
+        scene: 'scene'
+      , font: 'font'
     };
+
     //inherit from parent
     (function(source) {
         for(var k in source) if(!this.hasOwnProperty(k)) this[k] = source[k];
@@ -32,6 +42,12 @@ define([
         }
     });
 
+    Object.defineProperty(_p, 'font', {
+        get: function() {
+            return this._children[1];
+        }
+    });
+
     _p.clone = function(cloneElementProperties) {
         var clone = new this.constructor(this._controller
                             , this.scene.clone(cloneElementProperties)
@@ -39,4 +55,6 @@ define([
         this._cloneProperties(clone, cloneElementProperties);
         return clone;
     };
+
+    return Root;
 });

@@ -1,7 +1,7 @@
 define([
-    'Atem-CPS/OMA/_Node'
+    './_Node'
   , './Line'
-] function(
+], function(
     Parent
   , Line
 ) {
@@ -12,6 +12,10 @@ define([
     }
     var _p = Scene.prototype = Object.create(Parent.prototype);
     _p.constructor = Scene;
+
+    Object.defineProperty(_p, 'type', {
+        value: 'scene'
+    });
 
     _p._acceptedChildren = [Line];
 

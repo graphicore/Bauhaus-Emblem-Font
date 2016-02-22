@@ -7,17 +7,17 @@ define([
 ) {
     "use strict";
 
-    function Line() {
+    function Font() {
         Parent.call(this);
     }
-    var _p = Line.prototype = Object.create(Parent.prototype);
-    _p.constructor = Line;
+    var _p = Font.prototype = Object.create(Parent.prototype);
+    _p.constructor = Font;
 
     Object.defineProperty(_p, 'type', {
-        value: 'line'
+        value: 'font'
     });
 
     _p._acceptedChildren = [Glyph];
 
-    return Line;
+    return Font;
 });
