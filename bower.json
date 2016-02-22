@@ -1,0 +1,42 @@
+{
+  "name": "Bauhaus-Emblem-Font",
+  "version": "0.0.0",
+  "homepage": "https://github.com/graphicore/Bauhaus-Emblem-Font",
+  "authors": [
+    "Lasse Fister <commander@graphicore.de>"
+  ],
+  "description": "Atem-Project tech demo based on Oskar Schlemmers Bauhaus-Emblem design.",
+  "moduleType": [
+    "amd"
+  ],
+  "keywords": [
+    "parametric",
+    "generative",
+    "typography",
+    "CPS",
+    "Atem",
+    "typedesign",
+    "layout"
+  ],
+  "license": "GPLv3",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "app/lib/bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "requirejs": "~2.1.22",
+    "requirejs-domready": "~2.0.1",
+    "js-yaml": "~3.5.3",
+    "Atem-Errors": "graphicore/Atem-Errors",
+    "Atem-CPS": "graphicore/Atem-CPS",
+    "Atem-Property-Language": "graphicore/Atem-Property-Language",
+    "Atem-IO": "graphicore/Atem-IO",
+    "Atem-Pen-Case": "graphicore/Atem-Pen-Case",
+    "Atem-Math-Tools": "graphicore/Atem-Math-Tools",
+    "Atem-RequireJS-Config": "graphicore/Atem-RequireJS-Config"
+  }
+}
