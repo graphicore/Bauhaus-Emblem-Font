@@ -1,122 +1,84 @@
 define([
     'BEF/BEOM/Line'
   , 'BEF/BEOM/Glyph'
+  , 'BEF/diff'
 ], function(
     Line
   , Glyph
+  , diff
 ) {
     "use strict";
 
-    function LineIsFullError(message) {
-        this.message = message;
-        this.name = 'LineIsFullError';
-    }
-
-    function SceneBuilder(font) {
-        this._font = font;
+    function SceneBuilder(fontBuilder, scene) {
+        this._fontBuilder = fontBuilder;
+        this._scene = scene;
     }
 
     var _p = SceneBuilder.prototype;
 
-    _p._set = function(line, verticalPosition, glyphId) {
-        var glyph
-          , referenceGlyph
-          , verticalAdvance
-          // If we use CPS to control this it would also be a way to return
-          // +Infinity. And that is a good start for a never ending spiral line
-          // Just to keep the thought around somewhere.
-          , maxLineLength = 2*Math.PI // line.getComputedStyle().get('maxLineLength');
-          ;
+    _p._cast = function(referenceGlyph) {
         // We'll make a lot of duplicates per glyph. There's not yet a
         // smarter way in OMA (metacomponents FTW …)
-        // It could be a wise idea for speed to implement fast id fetching
-        // in OMA and SelectorEngine.
-        // SelectorEngine is probably hard, but an id index in OMA
-        // would be great here.
-        // For a short term relief, we could make it just for font.
-        // Is probably a good idea to collect some experience with this anyways.
-        referenceGlyph = line.root.font.query('glyph#' + glyphId);
-        glyph = referenceGlyph.clone(false);
+        var glyph = referenceGlyph.clone(false);
         // can't use the glyph id here, because there will be duplicates
+        glyph.setClass('ref_' + glyph.id)
         glyph.id = null;
         // this is a bit experimental but should work out just fine
         // referenceNode is in the _cps_whitelist of Glyph.
         // It's also kind of a nice approaching of the yet to come metacomponents
         glyph.referenceNode = referenceGlyph;
-        line.add(glyph)
-
-        // now we can get the verticalAdvance from CPS
-        verticalAdvance = glyph.getComputedStyle().get('verticalAdvance');
-        // TODO: add kerning
-        if(verticalAdvance + verticalPosition > maxLineLength) {
-            line.remove(glyph);
-            throw new LineIsFullError(['Line is full at "', glyphId , '" (', line.children.length, ')'].join(''));
-        }
-        return verticalAdvance;
+        return glyph;
     };
 
-    _p.setLine = function(line, glyphs, index) {
-        var consumed, i, l, verticalPosition = 0;
-        try {
-            for(consumed=0,l=glyphs.length; (i = index + consumed) < l; consumed++) {
-                if(glyphs[i] === '\n') {
-                    consumed += 1;
-                    break;
-                }
-                verticalPosition += this._set(line, verticalPosition, glyphs[i]);
-            }
+    _p._set = function(line, glyph) {
+        var lineLength
+            // To return +Infinity would be a good start for a never ending
+            // spiral line. Just to keep the thought around somewhere.
+          , maxLineLength = line.getComputedStyle().get('maxLength')
+          ;
+        line.add(glyph);
+
+        lineLength = line.getComputedStyle().get('length', 0);
+        // TODO: add kerning?
+        if(lineLength > maxLineLength) {
+            line.remove(glyph);
+            // line is full
+            return true;
         }
-        catch(e) {
-            if(e instanceof LineIsFullError)
-                return i;
-            throw e;
+        // line can try at least one more
+        return false;
+    };
+
+    _p._setLine = function(line, glyphs, index) {
+        var consumed = 0, i, l, lineIsFull;
+
+        for(i=index,l=glyphs.length;i<l; i++) {
+            lineIsFull = this._set(line, glyphs[i]);
+            if(lineIsFull)
+                break;
+            consumed += 1;
+            if (glyphs[i].referenceNode.id === 'br')
+                break;
         }
+
         return consumed;
     };
 
-    _p.shape = function(text) {
-        var glyphs = []
-          , lengths = this._font.glyphCodesLengthList
-          , i, l, len, token
-          , index = 0
-          ;
-
-        tokenizer: while(index < text.length) {
-            if(text[index] === '\n') {
-                glyphs.push('\n');
-                index += 1;
-                continue;
-            }
-            for(i=0,l=lengths.length;i<l;i++) {
-                len = lengths[i];
-                if(text.length < len)
-                    continue;
-                token = text.substr(index, len);
-                if(!this._font.has(token))
-                    continue;
-                glyphs.push(this._font.getId(token));
-                index += len;
-                continue tokenizer;
-            }
-            // not found!
-             glyphs.push(this._font.notDefGlyph);
-             index += 1;
-
-        }
-        return glyphs;
-    };
-
-    _p.setScene = function(scene, text) {
-        var consumed
-          , lineNo = 0
-          , glyphs = this.shape(text)
-          , line
-          , i,l
+    _p._setLines = function(glyphs, lines /* optional */) {
+        var i, l, line
+          , consumed
           ;
         for(i=0,l=glyphs.length;i<l;) {
-            line = new Line();
-            scene.add(line);
-            consumed = this.setLine(line, glyphs, i);
+            // TODO: this is a very good occasion for a generator
+            if(lines && lines.length){
+                line = lines.shift();
+            }
+            else {
+                line = new Line();
+                this._scene.add(line);
+            }
+
+            consumed = this._setLine(line, glyphs, i);
             if(!consumed) {
                 // If consumed is 0 we may never finish.
                 // Apeirophobia is the fear of infinity.
@@ -127,6 +89,128 @@ define([
             }
             i += consumed;
         }
+    };
+
+    _p._applyPatch = function(script, types) {
+        var i, l, cmd, oldType, line
+          , currentLine = null
+          , offset = 0
+          , firstLineIndex, idx, lineItemIndex, type
+            // The indexes in types correspond to the indexes in the commands
+            // of the patch script. We use them to find the right line to
+            // operate on and an offset from glyph indexes to line indexes.
+          , lineData = types.map(function(t){return [t.parent, t.index];})
+          , data
+          ;
+
+        for(i=0,l=script.length;i<l;i++) {
+            cmd = script[i];
+            // this happens if the an insert appends to the end
+            lineItemIndex = lineData.length === cmd[1] ? cmd[1]-1 :cmd[1];
+
+            data = lineData[lineItemIndex];
+            line = data[0];
+            if(line !== currentLine) {
+                // The line changed. recalculate the offset of the command
+                // indexes to the line indexes
+                offset = data[1] - lineItemIndex;
+                currentLine = line;
+                if(firstLineIndex === undefined)
+                    // all lines from this on will have to reflow
+                    firstLineIndex = line.index;
+            }
+
+            idx = cmd[1] + offset;
+            if(cmd[0]==='D') {
+                var del = line.splice(idx, 1);
+                offset -= 1;
+            }
+            else if (cmd[0] === 'I') {
+                type = this._cast(cmd[2]);
+                line.splice(idx, 0, type);
+                offset += 1;
+            }
+            else
+                throw new Error('Command "'+cmd[0]+'" unknown at index '
+                                            + i + ' ['+cmd.join(', ')+'])');
+        }
+        return firstLineIndex;
+    };
+
+    _p._reflow = function(firstLineIndex) {
+        var lines = this._scene.children.slice(firstLineIndex || 0)
+          , i, l, line
+          , glyphs = []
+          ;
+        for(i=0,l=lines.length;i<l;i++) {
+            line = lines[i];
+            // Empties the line and stores it's children in glyphs
+            Array.prototype.push.apply(glyphs, line.splice(0, line.childrenLength));
+        }
+        this._setLines(glyphs, lines);
+
+        // cleaning up: remove unused lines from the end of this._scene
+        lines = this._scene.children;
+        for(i=lines.length-1;i>=0;i--) {
+            line = lines[i];
+            if(line.childrenLength)
+                // no more unused lines
+                break;
+            this._scene.remove(line);
+        }
+    };
+
+    _p.shape = function(text) {
+        var glyphs = []
+          , lengths = this._fontBuilder.glyphCodesLengthList
+          , i, l, len, token
+          , index = 0
+          , notDefGlyph
+          ;
+
+        tokenizer: while(index < text.length) {
+            for(i=0,l=lengths.length;i<l;i++) {
+                len = lengths[i];
+                if(text.length < len)
+                    continue;
+                token = text.substr(index, len);
+                if(!this._fontBuilder.has(token))
+                    continue;
+                glyphs.push(this._fontBuilder.getGlyphByCode(token));
+                index += len;
+                continue tokenizer;
+            }
+            if(!notDefGlyph)
+                notDefGlyph = this._fontBuilder.getGlyphByCode(
+                                            this._fontBuilder.notDefGlyph);
+            // not found!
+             glyphs.push(notDefGlyph);
+             index += 1;
+
+        }
+        return glyphs;
+    };
+
+    _p.setScene = function(text) {
+        var types, glyphs, newGlyphs, patch, firstLineIndex;
+        if(!this._scene.childrenLength) {
+            // initial
+            glyphs = this.shape(text).map(this._cast, this);
+            this._setLines(glyphs);
+            return;
+        }
+        // update
+        // there must be at least one line in the scene for this to work
+        // but that's taken care of right above in the "initial" branch.
+        this._scene.children.forEach(function(line){
+            Array.prototype.push.apply(this, line.children);
+        }, (types = []));
+        glyphs = types.map(function(glyph){ return glyph.referenceNode; });
+        newGlyphs = this.shape(text);
+        patch = diff.getPatchScript(glyphs, newGlyphs);
+        firstLineIndex = this._applyPatch(patch, types);
+        if(firstLineIndex !== undefined)
+            this._reflow(firstLineIndex);
     };
 
     return SceneBuilder;

@@ -18,22 +18,25 @@ define([
       , setProperties = cpsTools.setProperties
       ;
 
-    function FontBuilder(fontData) {
+    function FontBuilder(font, fontData) {
         this._fontData = fontData;
         this._glyphData = fontData.glyphs;
         this._glyphCodesLengthList = null;
+        this._font = font;
 
         if(!this.has(this.notDefGlyph))
             throw new FontError('Missing glyph: NotDefGlyph called: "'+this.notDefGlyph+'".');
+
+        this._drawFont();
     }
 
     var _p = FontBuilder.prototype;
     _p.cosntructor = FontBuilder;
 
-    function fromYAML(str) {
+    function fromYAML(font, str) {
         var fontData = yaml.safeLoad(str);
         console.log(fontData);
-        return new FontBuilder(fontData);
+        return new FontBuilder(font, fontData);
     }
     FontBuilder.fromYAML = fromYAML;
 
@@ -54,7 +57,7 @@ define([
                     members.add(l);
                     list.push(l);
                 }
-                list.sort();
+                list.sort().reverse();
             }
             return this._glyphCodesLengthList;
         }
@@ -76,13 +79,13 @@ define([
         return id;
     };
 
-    _p._makeCommand = function(data) {
-        var command = new Command();
-        this.setDataToNode(command, data);
-        return command;
+    _p.getGlyphByCode = function(glyphCode) {
+        var id = this.getId(glyphCode);
+        // TODO: It's about time to build this.
+        return this._font.getById(id);
     };
 
-    _p.setDataToNode = function(node, data) {
+    _p._setDataToNode = function(node, data) {
         var id = data.id
           , properties = data.properties
           , classes = data.classes
@@ -98,7 +101,13 @@ define([
 
     };
 
-    _p.makeGlyph = function(glyphCode) {
+    _p._makeCommand = function(data) {
+        var command = new Command();
+        this._setDataToNode(command, data);
+        return command;
+    };
+
+    _p._makeGlyph = function(glyphCode) {
         var glyph, data, i,l, command;
         if(!this.has(glyphCode))
             throw new KeyError('Glyph missing for "' + glyphCode + '"');
@@ -121,7 +130,7 @@ define([
         // and why some parts are properties. The reasoning is yet not
         // clear. I expect it becoming more obvious what to do when
         // I can toy around a bit.
-        this.setDataToNode(glyph, data);
+        this._setDataToNode(glyph, data);
 
         if(data.children) for(i=0,l=data.children.length;i<l;i++) {
             command = this._makeCommand(data.children[i]);
@@ -131,10 +140,10 @@ define([
         return glyph;
     };
 
-    _p.drawFont = function(font) {
+    _p._drawFont = function() {
         var glyphCode, glyph;
 
-        this.setDataToNode(font, this._fontData);
+        this._setDataToNode(this._font, this._fontData);
         for (glyphCode in this._glyphData) {
             // FIXME: if the glyph at glyphCode has no id it should be
             // skipped and a warning should be issued.
@@ -143,8 +152,8 @@ define([
             // there.
             // Later in the program the getId method will throw FontError
             // if there are glyphs without ids.
-            glyph = this.makeGlyph(glyphCode);
-            font.add(glyph);
+            glyph = this._makeGlyph(glyphCode);
+            this._font.add(glyph);
         }
     };
 
