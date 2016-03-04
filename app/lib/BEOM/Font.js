@@ -17,6 +17,10 @@ define([
         value: 'font'
     });
 
+    Object.defineProperty(_p, 'idManager', {
+        value: true
+    });
+
     _p._acceptedChildren = [Glyph];
 
     return Font;
