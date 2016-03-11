@@ -24,6 +24,11 @@ define([
     }
     Root.factory = factory;
 
+    Object.defineProperty(_p, 'type', {
+         /* this is used for CPS selectors*/
+         value: 'root'
+    });
+
     _p._acceptedChildren = [Scene, Font];
 
     _p._cps_whitelist = {

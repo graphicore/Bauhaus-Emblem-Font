@@ -12,5 +12,5 @@ require([
         }
     }
     configure(setup, require);
-    require(['main']);
+    require(['BEF/main']);
 });
