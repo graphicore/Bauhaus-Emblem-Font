@@ -41,7 +41,8 @@ define([
         value: 'glyph'
     });
 
-    _p._acceptedChildren = [Command];
+    _p._acceptedChildren = Object.create(null);
+    _p._acceptedChildren[Command.prototype.type] = Command;
 
     return Glyph;
 });

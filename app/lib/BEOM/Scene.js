@@ -17,7 +17,8 @@ define([
         value: 'scene'
     });
 
-    _p._acceptedChildren = [Line];
+    _p._acceptedChildren = Object.create(null);
+    _p._acceptedChildren[Line.prototype.type] = Line;
 
     return Scene;
 });

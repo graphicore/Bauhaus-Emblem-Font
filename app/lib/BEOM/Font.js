@@ -21,7 +21,8 @@ define([
         value: true
     });
 
-    _p._acceptedChildren = [Glyph];
+    _p._acceptedChildren = Object.create(null);
+    _p._acceptedChildren[Glyph.prototype.type] = Glyph;
 
     return Font;
 });

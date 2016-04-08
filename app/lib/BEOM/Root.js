@@ -29,7 +29,9 @@ define([
          value: 'root'
     });
 
-    _p._acceptedChildren = [Scene, Font];
+    _p._acceptedChildren = Object.create(null);
+    _p._acceptedChildren[Scene.prototype.type] = Scene;
+    _p._acceptedChildren[Font.prototype.type] = Font;
 
     _p._cps_whitelist = {
         scene: 'scene'
