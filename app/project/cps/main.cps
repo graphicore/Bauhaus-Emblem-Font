@@ -13,8 +13,9 @@ line glyph {
 
 line glyph:i(0) {
     /*#md
-The first glyph has by default no `before` value, so that it starts at
-the beginning of the line.
+The first glyph has by default no `before` value, so that
+it starts at the beginning of the line.
+
 For optical alignments, this would have to be overridden. O the
 `advanceWidth` property must be augmented.
     */
@@ -35,13 +36,20 @@ line:i(0) {
     spacing: .02;
 }
 
+line:i(1) {
+    baseline: 200;
+    fontSize: 42;
+    vGrid: 50;
+    spacing: .02;
+}
+
 line {
     previous: parent:children[ index - 1 ];
     baseline: previous:baseline - lineHeight * fontSize;
-    fontSize: previous:fontSize * 0.61;
+    fontSize: previous:fontSize * 1;
     spacing: previous:spacing;
     lineHeight: 1.5;
-    vGrid: previous:vGrid * 1.67;
+    vGrid: previous:vGrid * 1;
     maxLength: deg 360;
     hu: deg 360 / vGrid;
     vu: fontSize;
@@ -61,12 +69,14 @@ glyph command {
     _coord: reference:coord;
     _rx: reference:rx;
     _ry: reference:ry;
-    translate: Translation 270 270;
+    translate: Translation 300 300;
     line: parent:parent;
     /* center alignment, the top of the canvas is the center */
     rotate: Rotation (-line:length/2 - deg 90);
     transform: translate * (Scaling 1 1) * rotate;
-    coord: transform * Polar (baseline + _coord:x * vu) (parent:startPos + parent:before + _coord:y * hu);
+    coord: transform * Polar
+        (baseline + _coord:x * vu)
+        (parent:startPos + parent:before + _coord:y * hu);
     rx: baseline + (_rx * vu);
     ry: baseline + (_ry * vu);
     largeArcFlag: reference:largeArcFlag;

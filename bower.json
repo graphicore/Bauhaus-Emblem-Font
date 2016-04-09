@@ -37,6 +37,9 @@
     "Atem-Pen-Case": "graphicore/Atem-Pen-Case",
     "Atem-Math-Tools": "graphicore/Atem-Math-Tools",
     "Atem-RequireJS-Config": "graphicore/Atem-RequireJS-Config",
-    "requirejs-domReady": "~2.0.1"
+    "requirejs-domReady": "~2.0.1",
+    "Atem-CPS-Developer-Tool": "graphicore/Atem-CPS-Developer-Tool",
+    "angular": "~1.5.3",
+    "less.js": "~2.6.1"
   }
 }

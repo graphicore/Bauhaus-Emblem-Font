@@ -1,0 +1,100 @@
+@app-color: #FFF;
+@app-gap: .5em;
+@app-border: 1px solid black;
+
+
+label {
+    display: block;
+}
+
+label select {
+    vertical-align: top;
+}
+
+
+html {
+    background-color: @app-color;
+    font-size: 16px;
+    height: 100%;
+}
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-y: hidden;
+}
+
+
+
+bauhaus-emblem-font{
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+}
+
+bef-canvas{
+    flex-grow: 1;
+    svg {
+        margin: 0 auto;
+        display: block;
+    }
+}
+
+.controls {
+    width: 50%;
+    flex-direction: column;
+    flex-grow: 0;
+    flex-shrink: 0;
+
+    height: 100%;
+    overflow-y: scroll;
+
+    display: flex;
+}
+
+bef-input {
+    flex-grow: 1;
+
+    textarea{
+        display: block;
+        max-width: 95%;
+        width: 95%;
+    }
+}
+
+mtk-cps-panel {
+    .draghandle{
+        display: none;
+    }
+
+    flex-grow: 0;
+    flex-shrink: 0;
+
+
+
+    font-family: monospace;
+}
+
+
+bef-canvas svg {
+    path {
+        stroke-width: 3px;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+}
+
+
+mtk-cps-comment .display.format-markdown {
+    font-family: Georgia;
+    font-size: 1.2em;
+    line-height: 1.4em;
+    color: black;
+    padding: .2em .5em;
+    margin: .5em 0;
+    code {
+        background: #eee;
+        padding: 0 .2em;
+    }
+
+}

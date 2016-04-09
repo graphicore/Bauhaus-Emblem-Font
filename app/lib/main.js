@@ -2,6 +2,7 @@ require([
     'BEF/errors'
   , 'require/domReady'
   , 'Atem-IO/io/static'
+  , 'Atem-IO/io/InMemory'
   , 'CPSController'
   , 'Atem-CPS/CPS/RuleController'
   , 'Atem-CPS/CPS/SelectorEngine'
@@ -9,11 +10,16 @@ require([
   , 'BEF/BEOM/Root'
   , 'BEF/foresting/SceneBuilder'
   , 'BEF/foresting/FontBuilder'
+  , 'angular'
+  , 'BEF/angular/app'
+  , 'Atem-CPS-Toolkit/services/dragAndDrop/DragDataService'
+  , 'Atem-CPS-Toolkit/services/dragAndDrop/DragIndicatorService'
   , './cpsTools'
 ], function(
     errors
   , domReady
   , staticIO
+  , InMemoryIO
   , CPSController
   , RuleController
   , SelectorEngine
@@ -21,6 +27,10 @@ require([
   , Root
   , SceneBuilder
   , FontBuilder
+  , angular
+  , angularApp
+  , DragDataService
+  , DragIndicatorService
   , cpsTools
 ) {
     var svgns = 'http://www.w3.org/2000/svg'
@@ -148,12 +158,19 @@ require([
         }
     }
 
+    function getIO() {
+        var io = new InMemoryIO();
+        io.mkDir(false, 'cps');
+        io.writeFile(false, 'cps/main.cps',  staticIO.readFile(false, 'project/cps/main.cps'));
+        console.log(io.readDir(false, ''), io.readDir(false, 'cps'))
+        return io;
+    }
+
     function main() {
         /* global document:true*/
-        var cpsDir = 'project/cps'
-        // todo, copy to an InMemory Location?
-          , io = staticIO
-          , fontData = io.readFile(false, 'project/font.yaml')
+        var cpsDir = 'cps'
+          , io = getIO()
+          , fontData = staticIO.readFile(false, 'project/font.yaml')
           , selectorEngine = new SelectorEngine()
           , ruleController = new RuleController(io, cpsDir, cpsTools.initializePropertyValue, selectorEngine)
           , controller = new CPSController( ruleController, Root.factory, selectorEngine)
@@ -162,25 +179,32 @@ require([
           , fontBuilder = FontBuilder.fromYAML(root.font, fontData)
           , scene = root.scene
           , builder = new SceneBuilder(fontBuilder, scene)
-          , timeout
+          , timeout, cpsChangeSubscription
           ;
 
-        svg.setAttribute('width', '800px');
-        svg.setAttribute('viewBox', '0 0 800 800');
+        svg.setAttribute('width', '600px');
+        svg.setAttribute('viewBox', '0 0 600 600');
         svg.style.border = '1px solid black';
 
         var input = document.createElement('textarea');
         input.value = 'ALL YOUR BAUHAUS ARE BELONG TO US';
         input.style.verticalAlign = 'top';
 
-        document.body.appendChild(input);
-        document.body.appendChild(svg);
+        // changes in the cps of child nodes are also monitored by this
+        // This is firering too often. Probably the deletion of items before
+        // is causing a loop. It seems that this bever stops. check!
 
         var update = (function () {
+            if(cpsChangeSubscription) {
+                root.off(cpsChangeSubscription);
+                cpsChangeSubscription = null;
+            }
             while(svg.children.length)
                 svg.removeChild(svg.lastChild);
             builder.setScene(this.value);
             drawScene(scene, svg);
+
+            cpsChangeSubscription = root.on('CPS-change', onchange);
         }).bind(input);
 
         var onchange = function() {
@@ -188,12 +212,45 @@ require([
             window.cancelAnimationFrame(timeout);
             timeout = window.requestAnimationFrame(update);
         };
-        // changes in the cps of child nodes are also monitored by this
-        // This is firering too often. Probably the deletion of items before
-        // is causing a loop. It seems that this bever stops. check!
-        // root.on('CPS-change', onchange.bind(input));
+
         input.addEventListener('input', onchange);
         update.call(input);
+
+
+        function inputDirective() {
+            function link(scope, element, attrs, controller) {
+                //jshint unused: vars
+                var  domElement = element[0];
+                domElement.appendChild(input);
+            }
+            return {
+                restrict: 'E'
+              , link: link
+            };
+        }
+        function canvasDirective() {
+            function link(scope, element, attrs, controller) {
+                //jshint unused: vars
+                var  domElement = element[0];
+                domElement.appendChild(svg);
+            }
+            return {
+                restrict: 'E'
+              , link: link
+            };
+        }
+        angularApp.directive('befInput', inputDirective);
+        angularApp.directive('befCanvas', canvasDirective);
+
+        var dragDataService = new DragDataService()
+          , dragIndicatorService = new DragIndicatorService()
+          ;
+        angularApp.constant('cpsTools', cpsTools);
+        angularApp.constant('cpsController', controller);
+        angularApp.constant('ruleController', ruleController);
+        angularApp.constant('dragDataService', dragDataService);
+        angularApp.constant('dragIndicatorService', dragIndicatorService);
+        angular.bootstrap(document, [angularApp.name]);
     }
     domReady(main);
 });

@@ -8,6 +8,22 @@
     <meta name="author" content="Lasse Fister">
 
     <title>Bauhaus Emblem Font | Atem—Tooling Expressive Models</title>
+
+    <link rel="stylesheet/less"
+          type="text/css"
+          href="lib/main.less"
+          />
+    <script>
+    less = {
+        env: "development",
+        async: true,
+        fileAsync: true,
+    //    poll: 1000,
+        functions: {},
+        dumpLineNumbers: 'mediaquery',
+    };
+    </script>
+    <script src="lib/bower_components/less.js/dist/less.min.js"></script>
     <script src="lib/bower_components/requirejs/require.js"></script>
     <script src="lib/bootstrap.js"></script>
     <style>
@@ -18,6 +34,6 @@
     </style>
   </head>
   <body>
-    <h1>Bauhaus Emblem Font</h1>
+    <bauhaus-emblem-font></bauhaus-emblem-font>
   </body>
 </html>
