@@ -12,6 +12,7 @@ define([
     function SceneBuilder(fontBuilder, scene) {
         this._fontBuilder = fontBuilder;
         this._scene = scene;
+        this._leftOver = [];
     }
 
     var _p = SceneBuilder.prototype;
@@ -63,8 +64,13 @@ define([
     _p._setLines = function(glyphs, lines /* optional */) {
         var i, l, line
           , consumed
+          , glyphs_
           ;
-        for(i=0,l=glyphs.length;i<l;) {
+        glyphs_ = glyphs.concat(this._leftOver);
+        this._leftOver = [];
+
+
+        for(i=0,l=glyphs_.length;i<l;) {
             // TODO: this is a very good occasion for a generator
             if(lines && lines.length){
                 line = lines.shift();
@@ -74,13 +80,23 @@ define([
                 this._scene.add(line);
             }
 
-            consumed = this._setLine(line, glyphs, i);
+            consumed = this._setLine(line, glyphs_, i);
             if(!consumed) {
                 // If consumed is 0 we may never finish.
                 // Apeirophobia is the fear of infinity.
                 /* global console:true*/
                 console.warn('Apeirophobia: line:i(' + line.index
                                 + ') did not consume any glyph, breaking.');
+                // OK, so this works BUT has one problem: If for example
+                // no glyph was used at all, it is likely that no cps-change
+                // event will trigger reflow, even after the problem that
+                // caused the apeirophobia has been solved! It would be
+                // better to have a line within the scene that takes all
+                // the left over glyphs, but that is not rendered to the svg.
+                // That way all changes would really be applied to the
+                // glyphs and thus the events would flow. I leave this open
+                // for later.
+                this._leftOver = glyphs_.slice(i);
                 break;
             }
             i += consumed;
@@ -102,7 +118,7 @@ define([
         for(i=0,l=script.length;i<l;i++) {
             cmd = script[i];
             // this happens if the an insert appends to the end
-            lineItemIndex = lineData.length === cmd[1] ? cmd[1]-1 :cmd[1];
+            lineItemIndex = lineData.length === cmd[1] ? cmd[1]-1 : cmd[1];
 
             data = lineData[lineItemIndex];
             line = data[0];
@@ -133,7 +149,7 @@ define([
         return firstLineIndex;
     };
 
-    _p._reflow = function(firstLineIndex) {
+    _p.reflow = function(firstLineIndex) {
         var lines = this._scene.children.slice(firstLineIndex || 0)
           , i, l, line
           , glyphs = []
@@ -143,6 +159,7 @@ define([
             // Empties the line and stores it's children in glyphs
             Array.prototype.push.apply(glyphs, line.splice(0, line.childrenLength));
         }
+
         this._setLines(glyphs, lines);
 
         // cleaning up: remove unused lines from the end of this._scene
@@ -206,7 +223,7 @@ define([
         patch = diff.getPatchScript(glyphs, newGlyphs);
         firstLineIndex = this._applyPatch(patch, types);
         if(firstLineIndex !== undefined)
-            this._reflow(firstLineIndex);
+            this.reflow(firstLineIndex);
     };
 
     return SceneBuilder;
