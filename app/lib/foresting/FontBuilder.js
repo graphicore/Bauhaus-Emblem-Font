@@ -35,7 +35,6 @@ define([
 
     function fromYAML(font, str) {
         var fontData = yaml.safeLoad(str);
-        console.log(fontData);
         return new FontBuilder(font, fontData);
     }
     FontBuilder.fromYAML = fromYAML;

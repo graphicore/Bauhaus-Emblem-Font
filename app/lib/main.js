@@ -34,7 +34,6 @@ require([
   , cpsTools
 ) {
     var svgns = 'http://www.w3.org/2000/svg'
-      , xlinkns = 'http://www.w3.org/1999/xlink'
       , ValueError = errors.Value
       ;
 
@@ -124,7 +123,6 @@ require([
     function drawLine (line, container) {
         var i, l, path, pen, glyph, styleDict//, verticalStart
           , glyphs = line.children
-          , cursorPosition = 0
           ;
         for(i=0,l=glyphs.length;i<l;i++) {
             path = container.ownerDocument.createElementNS(svgns, 'path');
@@ -132,19 +130,8 @@ require([
             glyph = glyphs[i];
             styleDict = glyph.getComputedStyle();
             drawGlyph(glyph, pen);
-            //verticalStart = cursorPosition + styleDict.get('before');
-            //path.setAttribute('transform', 'translate(270 270) rotate('+degree(verticalStart)+')');
-            //cursorPosition += styleDict.get('verticalAdvance');
             container.appendChild(path);
         }
-        // cursorPosition equals line-length, we need that for align.
-        // (We could write line-length into the property dict of the line)
-        // and then let it calculate the total rotation for us.
-        // FIXME: now rotate line controlled some CPS values
-        // Maybe something like: align: String "left"|"center"|"right"
-        // + rotate: Number radians
-        // NOW: cursorPosition is lineStyle.get('length', 0)
-
     }
 
     function drawScene (scene, container) {
@@ -162,7 +149,6 @@ require([
         var io = new InMemoryIO();
         io.mkDir(false, 'cps');
         io.writeFile(false, 'cps/main.cps',  staticIO.readFile(false, 'project/cps/main.cps'));
-        console.log(io.readDir(false, ''), io.readDir(false, 'cps'))
         return io;
     }
 
@@ -179,7 +165,7 @@ require([
           , fontBuilder = FontBuilder.fromYAML(root.font, fontData)
           , scene = root.scene
           , builder = new SceneBuilder(fontBuilder, scene)
-          , timeout, cpsChangeSubscription
+          , timeout
           ;
 
         svg.setAttribute('width', '600px');
@@ -193,29 +179,46 @@ require([
         // changes in the cps of child nodes are also monitored by this
         // This is firering too often. Probably the deletion of items before
         // is causing a loop. It seems that this bever stops. check!
-
-        var update = (function () {
-            if(cpsChangeSubscription) {
-                root.off(cpsChangeSubscription);
-                cpsChangeSubscription = null;
-            }
+        var lastVal, subscription = null;
+        var update = (function (reflow) {
             while(svg.children.length)
                 svg.removeChild(svg.lastChild);
-            builder.setScene(this.value);
-            drawScene(scene, svg);
 
-            cpsChangeSubscription = root.on('CPS-change', onchange);
+            // do we want to do this even when this.value did not change?
+            if(!reflow && lastVal !== this.value) {
+                lastVal = this.value;
+                builder.setScene(this.value);
+            }
+            else if(reflow) {
+                // reflow ...
+                builder.reflow();
+                // I did't have enough control to
+                // prevent a never ending feedback loop here.
+                // so I had to invent this method.
+                scene.flushStyleChanges();
+
+            }
+            drawScene(scene, svg);
         }).bind(input);
 
-        var onchange = function() {
+        var onchange = function(even, reflow) {
             // some debouncing
-            window.cancelAnimationFrame(timeout);
-            timeout = window.requestAnimationFrame(update);
+            //window.cancelAnimationFrame(timeout);
+            //timeout = window.requestAnimationFrame(update);
+            clearTimeout(timeout);
+            // this 10 msec timeout yields in much less calls to update
+            // than requestAnimationFrame. And since it is at a very high
+            // level, I think it's ok like this. (Until we have a better
+            // solution for the overall event system.)
+            timeout = setTimeout(update, 10, reflow);
         };
 
         input.addEventListener('input', onchange);
         update.call(input);
 
+        subscription = scene.on(['CPS-change'], function() {
+            onchange(undefined, true);
+        });
 
         function inputDirective() {
             function link(scope, element, attrs, controller) {
