@@ -1,16 +1,21 @@
 define([
-    'Atem-CPS/OMA/_Root'
+    // Parent
+    './_Node'
+    // Root.prototype as a mixin
+  , 'Atem-CPS/OMA/_Root'
   , './Scene'
   , './Font'
 ], function(
     Parent
+  , OMARoot
   , Scene
   , Font
 ) {
     "use strict";
 
     function Root(controller, font /* optional */, scene /* optional */) {
-        Parent.call(this, controller);
+        Parent.call(this);
+        this._controller = controller;
 
         this.add(scene || new Scene()); // 0
         this.add(font || new Font()); // 1
@@ -55,13 +60,21 @@ define([
         }
     });
 
-    _p.clone = function(cloneElementProperties) {
-        var clone = new this.constructor(this._controller
-                            , this.scene.clone(cloneElementProperties)
-                            );
-        this._cloneProperties(clone, cloneElementProperties);
-        return clone;
-    };
+    // mixin Root.prototype
+    (function(source, target) {
+            //  enumerable and non-enumerable properties found directly upon
+        var props = Object.getOwnPropertyNames(source)
+          , i, l, k, prop
+          ;
+        for(i=0,l=props.length;i<l;i++) {
+            k = props[i];
+            if(target.hasOwnProperty(k))
+                // don't override properties defined in here.
+                continue;
 
+            prop = Object.getOwnPropertyDescriptor(source, k);
+            Object.defineProperty(target, k, prop);
+        }
+    })(OMARoot.prototype, _p);
     return Root;
 });

@@ -1,9 +1,9 @@
 @namespace(scene) {
 
 line glyph {
-    before: referenceNode:before * hu;
-    width: referenceNode:width * hu;
-    after: referenceNode:after * hu;
+    before: baseNode:before * hu;
+    width: baseNode:width * hu;
+    after: baseNode:after * hu;
     advanceWidth: before + width + after;
     previous: parent:children[(index - 1)];
     /*#md Accumulate the `advanceWidth`s of the glyphs of this line. */
@@ -36,20 +36,13 @@ line:i(0) {
     spacing: .02;
 }
 
-line:i(1) {
-    baseline: 200;
-    fontSize: 42;
-    vGrid: 50;
-    spacing: .02;
-}
-
 line {
     previous: parent:children[ index - 1 ];
     baseline: previous:baseline - lineHeight * fontSize;
-    fontSize: previous:fontSize * 1;
+    fontSize: previous:fontSize * .75;
     spacing: previous:spacing;
     lineHeight: 1.5;
-    vGrid: previous:vGrid * 1;
+    vGrid: previous:vGrid * 1.3;
     maxLength: deg 360;
     hu: deg 360 / vGrid;
     vu: fontSize;
@@ -64,11 +57,10 @@ line * {
 }
 
 glyph command {
-    reference: parent:referenceNode:children[index];
-    cmd: reference:cmd;
-    _coord: reference:coord;
-    _rx: reference:rx;
-    _ry: reference:ry;
+    cmd: baseNode:cmd;
+    _coord: baseNode:coord;
+    _rx: baseNode:rx;
+    _ry: baseNode:ry;
     translate: Translation 300 300;
     line: parent:parent;
     /* center alignment, the top of the canvas is the center */
@@ -79,8 +71,8 @@ glyph command {
         (parent:startPos + parent:before + _coord:y * hu);
     rx: baseline + (_rx * vu);
     ry: baseline + (_ry * vu);
-    largeArcFlag: reference:largeArcFlag;
-    sweepFlag: reference:sweepFlag;
+    largeArcFlag: baseNode:largeArcFlag;
+    sweepFlag: baseNode:sweepFlag;
 }
 
   @namespace("glyph.ref_A") {

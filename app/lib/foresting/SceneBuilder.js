@@ -19,14 +19,10 @@ define([
     _p._cast = function(referenceGlyph) {
         // We'll make a lot of duplicates per glyph. There's not yet a
         // smarter way in OMA (metacomponents FTW …)
-        var glyph = referenceGlyph.clone(false);
+        // 2 = cloneClasses, 8 = cloneAttachedData, 10 = setBaseNode
+        var glyph = referenceGlyph.clone(2 | 8 | 0x10);
         // can't use the glyph id here, because there will be duplicates
-        glyph.setClass('ref_' + glyph.id)
-        glyph.id = null;
-        // this is a bit experimental but should work out just fine
-        // referenceNode is in the _cps_whitelist of Glyph.
-        // It's also kind of a nice approaching of the yet to come metacomponents
-        glyph.referenceNode = referenceGlyph;
+        glyph.setClass('ref_' + glyph.baseNode.id);
         return glyph;
     };
 
@@ -57,7 +53,7 @@ define([
             if(lineIsFull)
                 break;
             consumed += 1;
-            if (glyphs[i].referenceNode.id === 'br')
+            if (glyphs[i].baseNode.id === 'br')
                 break;
         }
 
@@ -205,7 +201,7 @@ define([
         this._scene.children.forEach(function(line){
             Array.prototype.push.apply(this, line.children);
         }, (types = []));
-        glyphs = types.map(function(glyph){ return glyph.referenceNode; });
+        glyphs = types.map(function(glyph){ return glyph.baseNode; });
         newGlyphs = this.shape(text);
         patch = diff.getPatchScript(glyphs, newGlyphs);
         firstLineIndex = this._applyPatch(patch, types);
