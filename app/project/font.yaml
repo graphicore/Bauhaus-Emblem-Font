@@ -55,7 +55,7 @@ glyphs:
   A:
     id: A
     properties:
-        width: 1.4
+        width: 1.8
         before: 0
         after: 0
         topCenter: Vector p4_0:x (width * .5)
@@ -146,10 +146,10 @@ glyphs:
   D:
     id: D
     properties:
-        width: 1
+        width: 1.1
         before: .1
         after: .1
-        h_width: width * 0.7
+        h_width: width * 0.4
         bottomRight: Vector 0 h_width
         topRight: Vector 1 h_width
         rightBottom: Vector p1_0:x width
@@ -183,7 +183,7 @@ glyphs:
   E:
     id: E
     properties:
-        width: .7
+        width: .9
         before: .1
         after: .1
         topRight: Vector 1 width
@@ -248,7 +248,7 @@ glyphs:
         width: 1
         before: .1
         after: .1
-        start: Vector p2_0:x (width * 0.4)
+        start: Vector p2_0:x (width * 0.5)
     children:
         - properties:
             cmd: moveTo
@@ -393,11 +393,12 @@ glyphs:
   M:
     id: M
     properties:
-        width: 1.3
-        before: .1
-        after: .1
+        width: 2.1
+        before: .05
+        after: .05
         centerBottom: Vector p0_0:x (width * .5)
-        topRight: Vector p4_0:x width
+        topLeft: Vector p4_0:x (width * .15)
+        topRight: Vector p4_0:x (width * .85)
         bottomRight: Vector p0_0:x width
     children:
         - properties:
@@ -405,7 +406,7 @@ glyphs:
             coord: p0_0
         - properties:
             cmd: lineTo
-            coord: p4_0
+            coord: parent:topLeft
         - properties:
             cmd: lineTo
             coord: parent:centerBottom
@@ -531,7 +532,7 @@ glyphs:
         width: 1.3
         before: .1
         after: .1
-        tailTop: Vector p2_0:x (width * 0.62)
+        tailTop: Vector p2_0:x (width * 0.4)
         tailBottom: Vector p0_0:x width
     children:
         - properties:
@@ -562,7 +563,7 @@ glyphs:
   S:
     id: S
     properties:
-        width: 1
+        width: .8
         before: .1
         after: .1
     children:
@@ -682,22 +683,25 @@ glyphs:
   X:
     id: X
     properties:
-        width: 1
-        before: .1
-        after: .1
+        width: 1.2
+        before: .05
+        after: .05
+        topLeft: Vector p4_0:x (width * .20)
+        topRight: Vector p4_0:x (width * .80)
+        bottomRight: Vector p0_1:x width
     children:
         - properties:
             cmd: moveTo
-            coord: p4_0
+            coord: parent:topLeft
         - properties:
             cmd: lineTo
-            coord: p0_1
+            coord: parent:bottomRight
         - properties:
             cmd: moveTo
             coord: p0_0
         - properties:
             cmd: lineTo
-            coord: p4_1
+            coord: parent:topRight
   Y:
     id: Y
     properties:

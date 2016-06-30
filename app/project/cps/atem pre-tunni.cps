@@ -1,5 +1,4 @@
 @namespace(scene) {
-
 line glyph {
     before: baseNode:before * hu;
     width: baseNode:width * hu;
@@ -8,7 +7,7 @@ line glyph {
     previous: parent:children[(index - 1)];
     /*#md Accumulate the `advanceWidth`s of the glyphs of this line. */
     startPos: previous:endPos + parent:spacing;
-    endPos: startPos + advanceWidth
+    endPos: startPos + advanceWidth;
 }
 
 line glyph:i(0) {
@@ -25,10 +24,10 @@ For optical alignments, this would have to be overridden. O the
 }
 
 line:i(0) {
-    baseline: 200;
+    baseline: 100;
     fontSize: 42;
-    vGrid: 50;
-    spacing: .02;
+    vGrid: 53;
+    spacing: .06;
 }
 
 line {
@@ -70,41 +69,55 @@ glyph command {
     sweepFlag: baseNode:sweepFlag;
 }
 
-  @namespace("glyph.ref_A") {
-    command:i(-1), command:i(-2) {
-      top: parent:children[1]:coord;
-      left: parent:children[0]:coord;
-      right:parent:children[2]:coord;
-    }
-
-    command:i(-2) {
-      coord: left + (top - left) * 0.25;
-    }
-    command:i(-1) {
-      coord: right + (top - right) * 0.25;
-    }
-  }
+/* does the job of kerning */
+line:i(0) glyph:i(0) {
+    /* A of ATEM */
+    after: -.03;
 }
 
-@namespace (font) {
-  * {
-      p0_0: Vector 0    0;
-      p0_1: Vector 0    1;
-      p1_0: Vector 0.28 0;
-      p1_1: Vector 0.28 1;
-      p2_0: Vector 0.56 0;
-      p2_1: Vector 0.56 1;
-      p3_0: Vector 0.75 0;
-      p3_1: Vector 0.75 1;
-      p4_0: Vector 1    0;
-      p4_1: Vector 1    1;
-      moveTo: "moveTo";
-      lineTo: "lineTo";
-      arcTo: "arcTo";
-      close: "close";
-      curveTo: "curveTo";
-  }
-  command {
-      rx: coord:x;
-  }
+line:i(0) glyph:i(19) {
+    /* the second S in EXPRESSIVE */
+    after: .03;
+}
+
+@namespace("glyph.ref_A") {
+command:i(-1),
+command:i(-2) {
+    top: parent:children[1]:coord;
+    left: parent:children[0]:coord;
+    right: parent:children[2]:coord;
+}
+
+command:i(-2) {
+    coord: left + (top - left) * 0.25;
+}
+
+command:i(-1) {
+    coord: right + (top - right) * 0.25;
+}
+}
+}
+
+@namespace(font) {
+* {
+    p0_0: Vector 0    0;
+    p0_1: Vector 0    1;
+    p1_0: Vector 0.28 0;
+    p1_1: Vector 0.28 1;
+    p2_0: Vector 0.56 0;
+    p2_1: Vector 0.56 1;
+    p3_0: Vector 0.75 0;
+    p3_1: Vector 0.75 1;
+    p4_0: Vector 1    0;
+    p4_1: Vector 1    1;
+    moveTo: "moveTo";
+    lineTo: "lineTo";
+    arcTo: "arcTo";
+    close: "close";
+    curveTo: "curveTo";
+}
+
+command {
+    rx: coord:x;
+}
 }

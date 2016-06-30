@@ -145,7 +145,7 @@ define([
         }
     }
 
-    var cpsFile = 'main.cps';
+    var cpsFile = 'atem.cps'//'main.cps';
 
     function getIO() {
         var io = new InMemoryIO();
@@ -175,7 +175,7 @@ define([
         svg.style.border = '1px solid black';
 
         var input = document.createElement('textarea');
-        input.value = 'ALL YOUR BAUHAUS ARE BELONG TO US';
+        input.value = 'ATEM\nTOOLING EXPRESSIVE MODELS';//'ALL YOUR BAUHAUS ARE BELONG TO US';
         input.style.verticalAlign = 'top';
 
         // changes in the cps of child nodes are also monitored by this
