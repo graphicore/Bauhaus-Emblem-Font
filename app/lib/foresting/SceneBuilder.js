@@ -72,7 +72,7 @@ define([
 
         for(i=0,l=glyphs_.length;i<l;) {
             // TODO: this is a very good occasion for a generator
-            if(lines && lines.length){
+            if(lines && lines.length) {
                 line = lines.shift();
             }
             else {
