@@ -180,28 +180,47 @@ define([
         // This is firering too often. Probably the deletion of items before
         // is causing a loop. It seems that this bever stops. check!
         var lastVal, subscription = null;
-        var update = (function (reflow) {
+        var update = (function (reset) {
             while(svg.children.length)
                 svg.removeChild(svg.lastChild);
 
             // do we want to do this even when this.value did not change?
-            if(!reflow && lastVal !== this.value) {
+            if(reset && lastVal !== this.value) {
                 lastVal = this.value;
                 builder.setScene(this.value);
             }
-            else if(reflow) {
+            else {
                 // reflow ...
                 builder.reflow();
-                // I did't have enough control to
+                // I didn't have enough control to
                 // prevent a never ending feedback loop here.
                 // so I had to invent this method.
+                // Though, it feels like this is preventing to
+                // achieve good line breaking in certain cases.
+                // FIXME: or maybe its not helping at all?
                 scene.flushStyleChanges();
-
             }
             drawScene(scene, svg);
         }).bind(input);
 
-        var onchange = function(even, reflow) {
+        var resetRequested = null
+          , onChange = function(reset, event) {
+
+            // resetRequested must stay true if it is already
+            resetRequested = reset || resetRequested;
+            // don't throw away if reset was true since the last call
+            // to `update`
+            // Otherwise, typing fast can be forgotten to be updated.
+            var reset_ = reset || resetRequested;
+
+
+
+            // It's nice to reset reflowRequested in a decorator of
+            // update instead of doing it in update directly.
+            function update_() {
+                resetRequested = null;
+                update(reset_);
+            }
             // some debouncing
             //window.cancelAnimationFrame(timeout);
             //timeout = window.requestAnimationFrame(update);
@@ -210,14 +229,14 @@ define([
             // than requestAnimationFrame. And since it is at a very high
             // level, I think it's ok like this. (Until we have a better
             // solution for the overall event system.)
-            timeout = setTimeout(update, 10, reflow);
+            timeout = setTimeout(update_, 10);
         };
 
-        input.addEventListener('input', onchange);
-        update.call(input);
+        input.addEventListener('input', onChange.bind(undefined, true));
+        update.call(input, true);
 
         subscription = scene.on(['CPS-change'], function() {
-            onchange(undefined, true);
+            onChange(false);
         });
 
         function inputDirective() {
