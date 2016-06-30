@@ -254,6 +254,19 @@ define([
         angularApp.constant('dragDataService', dragDataService);
         angularApp.constant('dragIndicatorService', dragIndicatorService);
         angular.bootstrap(document, [angularApp.name]);
+
+        // temporarily until we have project management
+        window.dumpCPS = function() {
+            var win = window.open()
+              , document
+              , content
+              ;
+            if(!win) return;
+            document = win.document;
+            content = document.createElement('pre');
+            content.innerText = ruleController.getRule(false, cpsFile) + '';
+            document.body.appendChild(content);
+        };
     }
     return domReady.bind(null, main);
 });
