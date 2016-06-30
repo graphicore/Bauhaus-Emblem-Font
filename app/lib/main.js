@@ -1,4 +1,4 @@
-require([
+define([
     'BEF/errors'
   , 'require/domReady'
   , 'Atem-IO/io/static'
@@ -153,7 +153,7 @@ require([
     }
 
     function main() {
-        /* global document:true*/
+        /* global document:true, window:true*/
         var cpsDir = 'cps'
           , io = getIO()
           , fontData = staticIO.readFile(false, 'project/font.yaml')
@@ -255,5 +255,5 @@ require([
         angularApp.constant('dragIndicatorService', dragIndicatorService);
         angular.bootstrap(document, [angularApp.name]);
     }
-    domReady(main);
+    return domReady.bind(null, main);
 });
