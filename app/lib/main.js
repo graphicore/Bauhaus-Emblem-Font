@@ -145,10 +145,12 @@ define([
         }
     }
 
+    var cpsFile = 'main.cps';
+
     function getIO() {
         var io = new InMemoryIO();
         io.mkDir(false, 'cps');
-        io.writeFile(false, 'cps/main.cps',  staticIO.readFile(false, 'project/cps/main.cps'));
+        io.writeFile(false, 'cps/'+cpsFile,  staticIO.readFile(false, 'project/cps/'+cpsFile));
         return io;
     }
 
@@ -159,7 +161,7 @@ define([
           , fontData = staticIO.readFile(false, 'project/font.yaml')
           , selectorEngine = new SelectorEngine()
           , ruleController = new RuleController(io, cpsDir, cpsTools.initializePropertyValue, selectorEngine)
-          , controller = new CPSController( ruleController, Root.factory, selectorEngine)
+          , controller = new CPSController( ruleController, Root.factory, selectorEngine, cpsFile)
           , root = controller.rootNode
           , svg = document.createElementNS(svgns, 'svg')
           , fontBuilder = FontBuilder.fromYAML(root.font, fontData)
