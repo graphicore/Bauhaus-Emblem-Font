@@ -1,7 +1,9 @@
 define([
     'Atem-Property-Language/UI'
+  , './CPSUIPanelItem'
 ], function(
     UI
+  , CPSUIPanelItem
 ) {
     "use strict";
     function CPSUIPanelController($scope) {
@@ -58,12 +60,6 @@ define([
         Array.prototype.splice.apply(this.items, args);
     };
 
-    _p._updateItem = function(item, propertyName, uiItem) {
-        item.propertyName = propertyName;
-        item.type = getType(uiItem);
-        item.uiItem = uiItem;
-    };
-
     _p._checkAndAddUI = function(keys) {
         var i, l, propertyName, uiItem, item
           ;
@@ -76,32 +72,42 @@ define([
             // not a uiElement
             if(!uiFilter(uiItem))
                 continue;
-            item = {
-                propertyName: null
-              , type: null
-              , uiItem: null
-            };
-            // this is an uncharted UI item
-            this._updateItem(item, propertyName, uiItem);
+            item = new CPSUIPanelItem();
+            item.update(propertyName, getType(uiItem), uiItem);
             this._properties.set(propertyName, item);
         }
     };
 
-    _p.updateProperty = function (propertyName) {
-        var uiItem = this._styleDict.get(propertyName, null)
-          , item = this._properties.get(propertyName)
+    /**
+     * returns false if item needs to be added again
+     * returns true if property got sufficiently updated
+     */
+    _p._updateProperty = function(propertyName) {
+        var properties = this._properties
+          , item = properties.get(propertyName)
+          , uiItem = this._styleDict.get(propertyName, null)
+          , type = getType(uiItem)
           ;
-        if(!uiFilter(uiItem))
-            // remove
+        if(type !== item.type) {
+            // The type changed, this must be re-added. Otherwise the
+            // directive for the type would try to update with a wrong
+            // value. So we delete it here and return false, then it gets
+            // re-added later.
+            properties.delete(propertyName);
             return false;
-        this._updateItem(item, propertyName, uiItem);
+        }
+        if(!uiFilter(uiItem))
+            // no longer valid, remove
+            properties.delete(propertyName);
+        else
+            item.update(propertyName, getType(uiItem), uiItem);
         return true;
     };
 
     _p._update = function update(data, channelKey, eventData) {
         var  properties = this._properties
            , seen
-           , i, l, keys, propertyName, item
+           , i, l, keys, propertyName
            ;
 
         // process change;
@@ -115,13 +121,9 @@ define([
                     // at detect additions.
                     || !properties.has(propertyName))
                 continue;
-            seen.add(propertyName);
 
-            item = properties.get(propertyName);
-            if(!this.updateProperty(propertyName)) {
-                // item is no longer a valid ui-item
-                properties.delete(propertyName);
-            }
+            if(this._updateProperty(propertyName))
+                seen.add(propertyName);
         }
 
         // detect additions
