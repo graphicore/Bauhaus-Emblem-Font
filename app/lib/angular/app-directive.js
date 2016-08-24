@@ -10,6 +10,7 @@ define([
           , controller: 'AppController'
           , replace: false
           , template: template
+          , controllerAs: 'ctrl'
         };
     }
     appDirective.$inject = [];
