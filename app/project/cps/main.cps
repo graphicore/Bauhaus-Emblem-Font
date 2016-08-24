@@ -1,3 +1,8 @@
+
+scene {
+    ui: UI 40;
+}
+
 @namespace(scene) {
 
 line glyph {
@@ -32,7 +37,7 @@ line glyph:i(-1) {
 line:i(0) {
     baseline: 200;
     fontSize: 42;
-    vGrid: 50;
+    vGrid: parent:ui:value;
     spacing: .02;
 }
 
