@@ -17,6 +17,17 @@ define([
 ) {
     "use strict";
 
+    var svgns = 'http://www.w3.org/2000/svg';
+
+    function attachCircle(element, vector, r) {
+        var child = element.ownerDocument.createElementNS(svgns, 'circle');
+        child.setAttribute('cx', vector[0]);
+        child.setAttribute('cy', vector[1]);
+        child.setAttribute('r', r);
+        element.appendChild(child);
+        return child;
+    }
+
     /**
      *  Return the first none-_VoidToken in args or null;
      */
@@ -181,18 +192,19 @@ define([
         doc.removeEventListener('mouseup', this.stop, false);
     }
 
-
     function init(item, event) {
         var element = event.target
-          , uiItem = item.uiItem
-          , doc = element.ownerDocument
-          , state
+          , uiItem, doc, state
           ;
+        if(!element.hasAttribute('data-is-ui'))
+            return;
+        uiItem = item.uiItem;
+        doc = element.ownerDocument;
         event.preventDefault();
         state = {
             rule: uiItem.rule
           , initialPos: new Vector(event.clientX, event.clientY)
-          , intrinsic: uiItem.value
+          , intrinsic: uiItem.value // need all arguments to render and to change update behavior
           // methods
           , update: null
           , stop: null
@@ -218,7 +230,29 @@ define([
             // here for longer.
             // since the contents of item are set by the ui-panel, it seems
             // like there's a update skipped or so.
+
+            // one listener for all mousedowns for now
             element.on('mousedown', init.bind(null, ctrl.item));
+
+            function draw(svg, item) {
+                while(svg.lastChild)
+                    svg.removeChild(svg.lastChild);
+
+                var handle = attachCircle(svg, [10, 10], 5);
+                handle.setAttribute('data-is-ui', '');
+            }
+            var svg = element[0].ownerDocument.createElementNS(svgns, 'svg')
+              , redrawHandler = draw.bind(null, svg, ctrl.item)
+              , subscription = ctrl.item.on('update', redrawHandler)
+              ;
+            redrawHandler();
+            element.append(svg)
+            // It's likely that item gets destroyed now as well.
+            // But, you can't know that for sure in here!
+            element.on('$destroy', function() {
+                ctrl.item.off(subscription);
+            });
+
         }
         return {
             restrict: 'E' // only matches element names
