@@ -167,7 +167,6 @@ define([
           , fontBuilder = FontBuilder.fromYAML(root.font, fontData)
           , scene = root.scene
           , builder = new SceneBuilder(fontBuilder, scene)
-          , timeout
           ;
 
         svg.setAttribute('width', '600px');
@@ -181,57 +180,95 @@ define([
         // changes in the cps of child nodes are also monitored by this
         // This is firering too often. Probably the deletion of items before
         // is causing a loop. It seems that this bever stops. check!
-        var lastVal, subscription = null;
-        var update = (function (reset) {
+        var lastVal = null
+          , subscription = null
+          , dropNextChange = false
+          ;
+        var update = (function () {
+            dropNextChange = true;
             while(svg.children.length)
                 svg.removeChild(svg.lastChild);
 
             // do we want to do this even when this.value did not change?
-            if(reset && lastVal !== this.value) {
+            if(lastVal !== this.value) {
                 lastVal = this.value;
                 builder.setScene(this.value);
             }
-            else {
+            else
                 // reflow ...
                 builder.reflow();
+            drawScene(scene, svg);
+        }).bind(input);
+
+        var onChange = function() {
+            if(dropNextChange) {
                 // I didn't have enough control to
                 // prevent a never ending feedback loop here.
+                // This is a second attempt, by just droping calls to change
+                // for a short time, untill supposedly all changes from
+                // the reflow are over.
+                // This is not perfect either and it will most probably fail
+                // sooner or later.
+                // below is a description of the previous failed attempt.
+
                 // so I had to invent this method.
                 // Though, it feels like this is preventing to
                 // achieve good line breaking in certain cases.
                 // FIXME: or maybe its not helping at all?
-                scene.flushStyleChanges();
+                // scene.flushStyleChanges();
+
+                // What s this all about:
+
+                // 1. The reflow action causes a lot of style changes.
+                // 2. the style changes caused by **that reflow action**
+                //    should not lead to another reflow (but it does)
+                // 3. hence we delete all of the changes caused by the reflow
+                // 4. occasionally, we delete changes caused by other actions
+                //      e.g. the change of ui
+                // 5. Then, the styledict that should cause the ui-panel to
+                //    update does not update.
+                // 6. It seems that not all reflow actions require us to
+                //    flushStyleChanges, only some cause the loop to happen.
+                //    IT SEEMS that its fatal when we had changes in the OM
+                //    like new lines or new Glyphs
+
+                // I think, what could work, if we could control that only
+                // events that happened after the listener was attached
+                // are send to the listener, we could just unsubscribe
+                // while doing the updates.
+                // So, either this can happen in StyleDict OR we add another
+                // more "synchronous" event handling style, that calls
+                // back when the styledict is available again.
+                // Also, promises could work somehow.
+
+                // Here is another comment from the former implementation of
+                // StyleDict.flushStyleChanges, which is now removed.
+
+               /**
+                * I hope we don't stick with this exactly like it is here, but right
+                * now I need this kind of control! Used via _Node.flushStyleChanges
+                * in Bauhaus Emblem Font to break an infinite feedback loop.
+                *
+                * I think this may help to find a better approach for all the messaging
+                * in stylDict and OMA, so it's good to have it here, even though the
+                * concept is sub-optimal.
+                *
+                * This turns out to be the source of a subtle bug in Bauhaus Emblem Font
+                * itself. Who would have thought this!
+                * The problem is that some of the change notifications are now missed
+                * in the CPS-UI implementation, and probably somewhere else as well.
+                *
+                * The mentioned feedback loop must be broken in another fashion!
+                *
+                */
+                if(dropNextChange === true)
+                    dropNextChange = {
+                        timeout: setTimeout(function(){ dropNextChange = false;}, 15)
+                    };
+                // dropping change
+                return;
             }
-            drawScene(scene, svg);
-        }).bind(input);
-
-        var resetRequested = null
-          , onChange = function(reset, event) {
-
-            // resetRequested must stay true if it is already
-            resetRequested = reset || resetRequested;
-            // don't throw away if reset was true since the last call
-            // to `update`
-            // Otherwise, typing fast can be forgotten to be updated.
-            var reset_ = reset || resetRequested;
-
-
-
-            // It's nice to reset reflowRequested in a decorator of
-            // update instead of doing it in update directly.
-            function update_() {
-                resetRequested = null;
-                update(reset_);
-            }
-            // some debouncing
-            //window.cancelAnimationFrame(timeout);
-            //timeout = window.requestAnimationFrame(update);
-            clearTimeout(timeout);
-            // this 10 msec timeout yields in much less calls to update
-            // than requestAnimationFrame. And since it is at a very high
-            // level, I think it's ok like this. (Until we have a better
-            // solution for the overall event system.)
-            timeout = setTimeout(update_, 10);
+            update();
         };
 
         input.addEventListener('input', onChange.bind(undefined, true));
