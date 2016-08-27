@@ -230,18 +230,41 @@ define([
     // bad indentation because this will become its own module
 
     function UIArguments(setup, args) {
-
-        this._parseArgs(args);
+        this._setup = this._parseSetup(setup);
+        this._parsed = this._parseArgs(args);
     }
     var _p = UIArguments.prototype;
 
     UIArguments.factory = function parseArgs(argsSetup, args) {
-        return new UIArguments(setup, args);
-    }
+        return new UIArguments(argsSetup, args);
+    };
+
+    _p._parseSetup = function(setup) {
+        var result = Object.create(null)
+          , k, setting, amount
+          ;
+        for(k in setup) {
+            result[k] = setting = Object.create(null);
+            if( (amount = setup[k].amount) )
+                setting.amount = typeof amount === 'number'
+                    ? [amount, amount]
+                    : amount // [min, max]
+                    ;
+            else
+                // default is one
+                setting.amount = [1, 1];
+            setting.valueFunc = setup[k].value || null;
+        }
+        return result;
+    };
 
     _p._parseKeyword = function(keywordString, i, args) {
-        var setup, data, keyword, flags
+        var setup, data, keyword, valueFunc
           , consumed = 0
+          , result = {
+                flags: null
+              , values: null
+            }
           ;
                 // split by any whitespace
         data = keywordString.split(/\s+/)
@@ -256,46 +279,65 @@ define([
                     ? 'Unknown keyword string "'+keyword+'"'
                     : 'Empty keyword string "'+keyword+'"'
             );
+        setup = this._setup[keyword];
+        result.flags = new Set(data.slice(1));
 
-        flags = new Set(data.slice(1));
-        setup = this._keywords[keyword];
-
-        setup.amount || 1
-        --> default is one, otherwise it should be bigger than 1 up to Infinity
-        --> each keyword with more than one allowed entries will be stored in an
-            array. A single appearance keyword is stored directly as value?
-        --> should we do a min max thing here?
-        --> is amount here min = max = amount?
-        --> if yes, we should also have [3,5] for min 3 max 5
-
-        setup.defaultFlags || new Set()
-        --> there are some flags that contradict each other, like min and max
-        --> so the default is min, but if there's a max, min should not be set
-        --> I'd also prefer to fail if there's more than on min or max flag
-
-
-        setup.value || or null
-        --> a function that accepts or refuses an input as value
-        --> if accepted, consumed is increased by one
-        --> could run until it refuses an input and should know the number
-            of the iteration, so it can shut down when it has enough
-
+        // Check amount? Min can only be checked later but we can break
+        // up early here.
         if(!(keyword in this._parsed))
             this._parsed[keyword] = [];
+        else if(this._parsed[keyword].length > setup.amount[1])
+            throw new CPSUIError('Keyword "' + keyword + '" has more occurences '
+                + 'than ' + setup.amount[1] + '.');
+
+
+        // A function that accepts or refuses an input as value.
+        // If accepted, consumed is increased by one.
+        // Runs until it refuses an input and should know the number of the
+        // iteration (=consumed), so it can shut down when it has had enough.
+        result.values = [];
+        valueFunc = setup.valueFunc;
+        while(valueFunc && valueFunc(args[i+=1], consumed)) {
+            consumed++;
+            result.values.push(args[i]);
+        }
+
         this._parsed[keyword].push(result);
         return consumed;
-    }
+    };
 
     _p._parseArgs = function (args) {
-        var i, l, item;
+        var i, l, k, item, setup, count;
         for(i=0,l=args.length;i<l;i++) {
             item = args[i];
             if(typeof item !== 'string')
                 throw new CPSUIError('Expected a keyword string but got a ('
                                         + (typeof item) + '): ' + item);
+            // skips the consumed items
             i += this._parseKeyword(item, i, args);
         }
-    }
+        for( k in this._setup ) {
+            setup = this._setup[k];
+            count = k in this._parsed
+                        ? this._parsed[k].length
+                        : 0
+                        ;
+
+            if(setup.amount[0] > 0 && setup.amount[0] < count)
+                throw new CPSUIError('Not enough occurences of keyword '
+                        + '"' + k +'" '
+                        + 'required is ' + setup.amount[0] + ' '
+                        + 'but got: ' + count + '.');
+            if(setup.after)
+                // using `.call(null, ...) because there's no reason
+                // why after should have access to setup.
+                this._parsed[k] = setup.after.call(null, this._parsed[k] || []);
+        }
+    };
+
+    _p.get = function(keyword) {
+        return this._parsed(keyword);
+    };
 
     // bad indentation end;
     })();
@@ -326,7 +368,7 @@ define([
      *             are discarded.
      *         "min" or "max" (optional) default: "min"
      *             min and max are only used if there is just one
-     *             boundary defined. otherwise
+     *             boundary defined.
      *
      * "unbounded"
      *     While editing, the drag handle can leave the ui-elements
@@ -383,7 +425,116 @@ define([
      *     arguments:
      *         magnitude:integer (required)
      */
+    var uiArgsumentsSetup = {
+        mark: {
+            amount: [0, Infinity]
+          , valueFunc: function(value, i) {
+                // jshint unused: vars
+                return typeof value === 'number';
+            }
+          , after: function drawMarks(items) {
+                var i, l, mark
+                  , limits = []
+                  , marks = []
+                  , min = null
+                  , max = null
+                  ;
+                for (i=0,l=items.length;i<l;i++) {
+                    mark = items[i];
+                    if(mark.flags.has('limiting'))
+                        limits.push(mark);
+                    else
+                        marks.push(mark);
+                }
+
+                if(limits.length > 2)
+                    for (i=0,l=limits.length;i<l;i++) {
+                        if(!min || min.value > limits[i].value)
+                            min = limits[i];
+                        if(!max || max.value < limits[i].value)
+                            max = limits[i];
+                    }
+                else if(limits.length === 1)
+                    if (limits[0].flags.has('max'))
+                        max = limits[0];
+                    else
+                        min = limits[0];
+
+                return {min: min, max: max, marks: marks};
+            }
+        }
+      , unbounded: {
+            // this behaves like a flag, also currently not implemented
+            amount: [0, 1]
+        }
+      , delta: {
+            // defaults to `"delta move" 0` if not present
+            amount: [0, 1]
+          , valueFunc: function(magnitude, i) {
+                // jshint unused: vars
+                if (typeof magnitude !== 'number')
+                    return false;
+                if (magnitude !== magnitude | 0)
+                    throw new CPSUIError('Wrong type, `magnitude` of `delta` '
+                            + 'must be an integer, but is: ' + magnitude + '.');
+                return true;
+            }
+        }
+      , roc: {
+            // defaults to "roc linear" if not present
+            amount: [0, 1]
+        }
+      , precision: {
+            amount: [0, 1]
+          , valueFunc: function(magnitude, i) {
+                // jshint unused: vars
+                if (typeof magnitude !== 'number')
+                    return false;
+                if (magnitude !== magnitude | 0)
+                    throw new CPSUIError('Wrong type, `magnitude` of `precision` '
+                            + 'must be an integer, but is: ' + magnitude + '.');
+                return true;
+            }
+        }
+    };
     var parseArgs = UIArguments.factory.bind(null, uiArgsumentsSetup);
+
+    function draw(svg, item) {
+        // clean the slate
+        while(svg.lastChild)
+            svg.removeChild(svg.lastChild);
+
+        // parse the arguments of uiItem and draw the wiget accordingly.
+        // TODO: should UIArguments parse the values as well?
+        var args = parseArgs(item.uiItem.arguments.slice(1))
+          , marks, allValues, max, min
+          ;
+
+        // get the biggest and smallest value to display, this way
+        // we know the bounds to draw for the widget.
+        marks = args.get('mark');
+        allValues = marks.marks.slice();
+        if(marks.max !== null)
+            allValues.push(marks.max);
+        if (marks.min !== null)
+            allValues.push(marks.min);
+        allValues = allValues.map(function(item){ return item.value; });
+        allValues.push(item.uiItem.value);
+        max = Math.max.apply(null, allValues);
+        min = Math.min.apply(null, allValues);
+
+        // With this formula, we can position all elements between
+        // 0 and 100 %
+        // Now just some iteration is needed and to draw the right
+        // icon for each item!
+        // let's see how this comes out, without caring for edge cases!
+        normalizedMax = max - min;
+        normalizedValue = value - min;
+        position = normalizedValue / normalizedMax;
+
+        var handle = attachCircle(svg, [10, 10], 5);
+        handle.setAttribute('data-is-ui', '');
+    }
 
     function numberDirective() {
         function link(scope, element, attrs, ctrl) {
@@ -398,22 +549,12 @@ define([
             // one listener for all mousedowns for now
             element.on('mousedown', init.bind(null, ctrl.item));
 
-            function draw(svg, item) {
-                // clean the slate
-                while(svg.lastChild)
-                    svg.removeChild(svg.lastChild);
-
-                // parse the arguments of uiItem and draw the wiget accordingly.
-
-                var handle = attachCircle(svg, [10, 10], 5);
-                handle.setAttribute('data-is-ui', '');
-            }
             var svg = element[0].ownerDocument.createElementNS(svgns, 'svg')
               , redrawHandler = draw.bind(null, svg, ctrl.item)
               , subscription = ctrl.item.on('update', redrawHandler)
               ;
             redrawHandler();
-            element.append(svg)
+            element.append(svg);
             // It's likely that item gets destroyed now as well.
             // But, you can't know that for sure in here!
             element.on('$destroy', function() {
