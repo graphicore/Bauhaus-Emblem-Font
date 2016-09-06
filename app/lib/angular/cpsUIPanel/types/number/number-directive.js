@@ -1,5 +1,6 @@
 define([
     'require/text!./number.tpl'
+  , 'BEF/errors'
   , 'Atem-Property-Language/parsing/ASTOperation'
   , 'Atem-Property-Language/parsing/ASTGrouping'
   , 'Atem-Property-Language/parsing/_VoidToken'
@@ -8,6 +9,7 @@ define([
   , 'Atem-Math-Tools/Vector'
     ], function(
     template
+  , errors
   , ASTOperation
   , ASTGrouping
   , _VoidToken
@@ -18,20 +20,24 @@ define([
     "use strict";
 
     // FIXME: it would be advisable to separate the view logic from the
-    // business logic. Though that's not so straaight forward, look at init
+    // business logic. Though that's not so straight forward, look at init
     // where `state` is created ... all concerns (event handling/business)
     // get's mixed. Clean separation will however be key to make this
     // reusable code.
 
-    var svgns = 'http://www.w3.org/2000/svg';
+    var svgns = 'http://www.w3.org/2000/svg'
+      , ValueError = errors.Value
+      , CPSUIError = errors.CPSUI
+      ;
 
-    function attachCircle(element, vector, r) {
-        var child = element.ownerDocument.createElementNS(svgns, 'circle');
-        child.setAttribute('cx', vector[0]);
-        child.setAttribute('cy', vector[1]);
-        child.setAttribute('r', r);
-        element.appendChild(child);
-        return child;
+    /**
+     * from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round
+     */
+    function round(number, precision) {
+        var factor = Math.pow(10, -precision);
+        var tempNumber = number * factor;
+        var roundedTempNumber = Math.round(tempNumber);
+        return roundedTempNumber / factor;
     }
 
     /**
@@ -135,18 +141,40 @@ define([
           // the nature of the other args;
           , newArgumentFormula, newArgument
           , firstArg
-          , delta, newIntrinsic
-          ;
-
-        delta = event.clientX - this.initialPos.x;
-        if(delta === 0)
-            return;
+          , delta, deltaMagnitude, roundPrecision, newIntrinsic
+          , marks
+          , roc
+        ;
         firstArg = getFirstArg(this.astOperation.postArguments);
         if(!firstArg)
             // this means there was no none-_VoidToken in postArguments
             throw new Error('A UI item must have at least one argument!');
 
-        newIntrinsic = this.intrinsic + (delta / 10);
+        delta = event.clientX - this.initialPos.x;
+        deltaMagnitude = this.args.get('delta').value;
+        delta = delta * Math.pow( 10, deltaMagnitude);
+
+        roc = this.args.get('roc');
+        if (roc === 'cubic')
+            delta = Math.pow(delta, 3);
+
+        newIntrinsic = this.intrinsic + delta;
+
+        roundPrecision = this.args.get('precision');
+
+        if(roundPrecision !== null)
+            newIntrinsic = round(newIntrinsic, roundPrecision);
+
+
+        marks = this.args.get('mark');
+        if(marks.min !== null)
+            newIntrinsic = Math.max(marks.min.value, newIntrinsic);
+        if(marks.max !== null)
+            newIntrinsic = Math.min(marks.max.value, newIntrinsic);
+
+        if(this.intrinsic === newIntrinsic)
+            return;
+
         newArgumentFormula = ['(' ,  newIntrinsic , ')'].join('');
         newArgument = Expression.factory(newArgumentFormula)[1].ast.nodes[0];
         // assert newArgument instanceof ASTGrouping
@@ -207,10 +235,15 @@ define([
         uiItem = item.uiItem;
         doc = element.ownerDocument;
         event.preventDefault();
+
         state = {
             rule: uiItem.rule
           , initialPos: new Vector(event.clientX, event.clientY)
           , intrinsic: uiItem.value // need all arguments to render and to change update behavior
+          // for now we make a difference between arguments updates and value updates
+          // although, there's not so much difference when we start to change
+          // arguments via cps-ui (but that's not so urgent).
+          , args: parseArgs(uiItem.arguments.slice(1))
           // methods
           , update: null
           , stop: null
@@ -253,7 +286,8 @@ define([
             else
                 // default is one
                 setting.amount = [1, 1];
-            setting.valueFunc = setup[k].value || null;
+            setting.valueFunc = setup[k].valueFunc || null;
+            setting.afterFunc = setup[k].afterFunc || null;
         }
         return result;
     };
@@ -273,7 +307,7 @@ define([
                 ;
 
         keyword = data[0];
-        if(!(keyword in this._keywords))
+        if(!(keyword in this._setup))
             throw new CPSUIError(
                 keyword
                     ? 'Unknown keyword string "'+keyword+'"'
@@ -281,15 +315,6 @@ define([
             );
         setup = this._setup[keyword];
         result.flags = new Set(data.slice(1));
-
-        // Check amount? Min can only be checked later but we can break
-        // up early here.
-        if(!(keyword in this._parsed))
-            this._parsed[keyword] = [];
-        else if(this._parsed[keyword].length > setup.amount[1])
-            throw new CPSUIError('Keyword "' + keyword + '" has more occurences '
-                + 'than ' + setup.amount[1] + '.');
-
 
         // A function that accepts or refuses an input as value.
         // If accepted, consumed is increased by one.
@@ -302,24 +327,39 @@ define([
             result.values.push(args[i]);
         }
 
-        this._parsed[keyword].push(result);
-        return consumed;
+        return [keyword, result, consumed];
     };
 
     _p._parseArgs = function (args) {
-        var i, l, k, item, setup, count;
+        var result = Object.create(null)
+          , kwData, keyword
+          , i, l, k, item, setup, count
+          ;
+
         for(i=0,l=args.length;i<l;i++) {
             item = args[i];
             if(typeof item !== 'string')
                 throw new CPSUIError('Expected a keyword string but got a ('
                                         + (typeof item) + '): ' + item);
+            kwData = this._parseKeyword(item, i, args);
+            keyword = kwData[0];
+            setup = this._setup[keyword];
+            // Check amount? Min can only be checked later but we can break
+            // up early here.
+            if(!(keyword in result))
+                result[keyword] = [];
+            else if(result[keyword].length > setup.amount[1])
+                throw new CPSUIError('Keyword "' + keyword + '" has more occurences '
+                    + 'than ' + setup.amount[1] + '.');
+
+            result[keyword].push(kwData[1]);
             // skips the consumed items
-            i += this._parseKeyword(item, i, args);
+            i += kwData[2];
         }
         for( k in this._setup ) {
             setup = this._setup[k];
-            count = k in this._parsed
-                        ? this._parsed[k].length
+            count = k in result
+                        ? result[k].length
                         : 0
                         ;
 
@@ -328,17 +368,18 @@ define([
                         + '"' + k +'" '
                         + 'required is ' + setup.amount[0] + ' '
                         + 'but got: ' + count + '.');
-            if(setup.after)
+            if(setup.afterFunc)
                 // using `.call(null, ...) because there's no reason
                 // why after should have access to setup.
-                this._parsed[k] = setup.after.call(null, this._parsed[k] || []);
+                result[k] = setup.afterFunc.call(null, result[k] || []);
         }
+        return result;
     };
 
     _p.get = function(keyword) {
-        return this._parsed(keyword);
+        return this._parsed[keyword];
     };
-
+    return UIArguments;
     // bad indentation end;
     })();
 
@@ -370,7 +411,7 @@ define([
      *             min and max are only used if there is just one
      *             boundary defined.
      *
-     * "unbounded"
+     * "unbounded" (TODO!)
      *     While editing, the drag handle can leave the ui-elements
      *     canvas to give better/different feedback.
      *     After editing the disllay will be adjusted.
@@ -398,7 +439,7 @@ define([
      *             `magnitude` must be a whole number (integer).
      *     flags:
      *         "move" default (if feasible: test this!)
-     *         "interval"
+     *         "interval" (TODO!)
      * "roc <flags>"
      *     Rate of change function.
      *     flags:
@@ -425,29 +466,39 @@ define([
      *     arguments:
      *         magnitude:integer (required)
      */
-    var uiArgsumentsSetup = {
+    var uiArgumentsSetup = {
         mark: {
             amount: [0, Infinity]
           , valueFunc: function(value, i) {
                 // jshint unused: vars
                 return typeof value === 'number';
             }
-          , after: function drawMarks(items) {
+          , afterFunc: function (items) {
                 var i, l, mark
                   , limits = []
                   , marks = []
                   , min = null
                   , max = null
+                  , origin = null
                   ;
                 for (i=0,l=items.length;i<l;i++) {
                     mark = items[i];
+                    if(!mark.values.length)
+                        // FIXME: amount of values expected could be checked
+                        // by the parser easily. This will be missed by
+                        // other implementations otherwise.
+                        throw new CPSUIError('Mark i '+i+' misses it\'s value.');
+                    mark.value = mark.values[0];
                     if(mark.flags.has('limiting'))
                         limits.push(mark);
                     else
                         marks.push(mark);
+
+                    if(!origin && mark.flags.has('origin'))
+                        origin = mark;
                 }
 
-                if(limits.length > 2)
+                if(limits.length > 1)
                     for (i=0,l=limits.length;i<l;i++) {
                         if(!min || min.value > limits[i].value)
                             min = limits[i];
@@ -460,7 +511,7 @@ define([
                     else
                         min = limits[0];
 
-                return {min: min, max: max, marks: marks};
+                return {min: min, max: max, marks: marks, origin: origin};
             }
         }
       , unbounded: {
@@ -474,15 +525,27 @@ define([
                 // jshint unused: vars
                 if (typeof magnitude !== 'number')
                     return false;
-                if (magnitude !== magnitude | 0)
+                if (!isFinite(magnitude))
                     throw new CPSUIError('Wrong type, `magnitude` of `delta` '
-                            + 'must be an integer, but is: ' + magnitude + '.');
+                            + 'must be finite but is: ' + magnitude + '.');
                 return true;
+            }
+          , afterFunc: function (items) {
+                return {
+                        value: items.length ? items[0].values[0] : 0
+                      , flags: items.length ? items[0].flags : new Set()
+                };
             }
         }
       , roc: {
             // defaults to "roc linear" if not present
             amount: [0, 1]
+          , afterFunc: function (items) {
+                if(items.length)
+                    if(items[0].flags.has('cubic'))
+                        return 'cubic';
+                return 'linear';
+            }
         }
       , precision: {
             amount: [0, 1]
@@ -490,50 +553,307 @@ define([
                 // jshint unused: vars
                 if (typeof magnitude !== 'number')
                     return false;
-                if (magnitude !== magnitude | 0)
+                if (magnitude !== (magnitude | 0))
                     throw new CPSUIError('Wrong type, `magnitude` of `precision` '
                             + 'must be an integer, but is: ' + magnitude + '.');
                 return true;
             }
+          , afterFunc: function (items) {
+                return items.length ? items[0].values[0] : null;
+            }
         }
     };
-    var parseArgs = UIArguments.factory.bind(null, uiArgsumentsSetup);
+    var parseArgs = UIArguments.factory.bind(null, uiArgumentsSetup);
 
-    function draw(svg, item) {
-        // clean the slate
-        while(svg.lastChild)
-            svg.removeChild(svg.lastChild);
 
-        // parse the arguments of uiItem and draw the wiget accordingly.
-        // TODO: should UIArguments parse the values as well?
-        var args = parseArgs(item.uiItem.arguments.slice(1))
-          , marks, allValues, max, min
+    function getSvg(doc, width, height) {
+        var svg = doc.createElementNS(svgns, 'svg');
+        svg.setAttribute('viewbox', [0, 0, width, height].join(' '));
+        svg.setAttribute('width', width);
+        svg.setAttribute('height', height);
+        return svg;
+    }
+    function makePolygon(doc, points) {
+        var item = doc.createElementNS(svgns, 'polygon');
+        item.setAttribute('points',
+                points.map(function(item){ return item.join(',');})
+                      .join(' '));
+        return item;
+    }
+
+    function drawItem(doc, type, position) {
+        var width = 20, height = 20
+          , item, svg
+          , marginLeft
           ;
+        switch(type) {
+            case 'handle':
+                item = doc.createElementNS(svgns, 'ellipse');
+                item.setAttribute('cx', width/2);
+                item.setAttribute('cy', height/2);
+                item.setAttribute('rx', width/2);
+                item.setAttribute('ry', height/2);
+                item.setAttribute('data-is-ui', '');
+                marginLeft = -width/2;
+                break;
+            case 'min':
+                width = width/2;
+                item = makePolygon(doc, [
+                    [0, 0]
+                  , [0, height]
+                  , [width, height/2]
+                ]);
+                marginLeft = -width;
+                break;
+            case 'max':
+                width = width/2;
+                item = makePolygon(doc, [
+                    [0, height/2]
+                  , [width, height]
+                  , [width, 0]
+                ]);
+                marginLeft = 0;
+                break;
+            case 'mark':
+                item = makePolygon(doc, [
+                    [0, height/2]
+                  , [width/2, height]
+                  , [width, height/2]
+                  , [width/2, 0]
+                ]);
+                marginLeft = -width/2;
+                break;
+            default:
+                throw new ValueError('Unknown type: "' + type + '".');
+        }
 
+        svg = getSvg(doc, width, height);
+        svg.classList.add('slider-item', 'type-'+type);
+        svg.appendChild(item);
+        svg.style.position = 'absolute';
+        svg.style.left = (100 * position)+ '%';
+        svg.style.marginLeft = marginLeft + 'px';
+
+        return svg;
+    }
+
+
+    function _normalizeValue(min, max, value) {
+        return (value - min) / (max - min);
+    }
+
+    function drawItems(elem, type, items, min, max) {
+        var position
+          , item, value
+          , i, l
+          ;
+        for(i=0,l=items.length;i<l;i++) {
+            value = items[i];
+            // position is between 0 and 1
+            position = _normalizeValue(min, max, value);
+            item = drawItem(elem.ownerDocument, type, position);
+            elem.appendChild(item);
+        }
+    }
+
+    function _getValue(item){ return item.value; }
+
+    function getMinMax(marks, uiItem) {
         // get the biggest and smallest value to display, this way
         // we know the bounds to draw for the widget.
-        marks = args.get('mark');
-        allValues = marks.marks.slice();
+       var allValues = marks.marks.slice()
+         , min, max
+         ;
         if(marks.max !== null)
             allValues.push(marks.max);
         if (marks.min !== null)
             allValues.push(marks.min);
-        allValues = allValues.map(function(item){ return item.value; });
-        allValues.push(item.uiItem.value);
+        allValues = allValues.map(_getValue);
+        allValues.push(uiItem.value);
         max = Math.max.apply(null, allValues);
         min = Math.min.apply(null, allValues);
+        return [min, max];
+    }
 
-        // With this formula, we can position all elements between
-        // 0 and 100 %
-        // Now just some iteration is needed and to draw the right
-        // icon for each item!
-        // let's see how this comes out, without caring for edge cases!
-        normalizedMax = max - min;
-        normalizedValue = value - min;
-        position = normalizedValue / normalizedMax;
+    // the standard sort function in js is broken for numbers
+    function _sortNum(a, b){ return a-b;}
 
-        var handle = attachCircle(svg, [10, 10], 5);
-        handle.setAttribute('data-is-ui', '');
+    function _cutout(lines, cutLine) {
+        var i, l, line, result = [];
+        cutLine.sort(_sortNum);
+        for(i=0,l=lines.length;i<l;i++) {
+            line = lines[i];
+            line.sort(_sortNum);
+
+            // total overlap, line is removed
+            if(line[0] >= cutLine[0] && line[1] <= cutLine[1])
+                continue;
+
+            // no overlap, all of line is bigger/smaller than the range of cutLine
+            if(line[0] >= cutLine[1] || line[1] <= cutLine[0]) {
+                result.push(line);
+                continue;
+            }
+
+            // has a range smaller than, but overlapping with cutline
+            if(line[0] < cutLine[0])
+                result.push([line[0], cutLine[0]]);
+
+            // has a range bigger than, but overlapping with cutline
+            if(line[1] > cutLine[1])
+                result.push([cutLine[1], line[1]]);
+        }
+        return result;
+    }
+
+    function _drawRanges(elem, type, lines) {
+        // hmm, line as a div?
+        var i, l, line;
+        for(i=0,l=lines.length;i<l;i++) {
+            line = elem.ownerDocument.createElement('div');
+            line.classList.add('line', 'type-' + type);
+            line.style.position = 'absolute';
+            line.style.left = (lines[i][0] * 100) + '%';
+            line.style.width = ((lines[i][1] - lines[i][0]) * 100) + '%';
+            elem.appendChild(line);
+        }
+    }
+
+    function drawLines(elem, val, minimum, maximum, marks) {
+        // normalize values beween 0 and 1
+        var _normalize = _normalizeValue.bind(null, minimum, maximum)
+          , min = 0
+          , max = 1
+          , marksMin = marks.min
+                        ? _normalize(marks.min.value)
+                        : null
+          , marksMax = marks.max
+                        ? _normalize(marks.max.value)
+                        : null
+          , origin = marks.origin
+                        ? _normalize(marks.origin.value)
+                        : null
+          , value = _normalize(val)
+          , magnitude = null
+          , potential = null
+          , overflow = null
+          , unreachables = []
+          ;
+
+        // Let's see how this works out:
+        //
+        // value magnitude indicator, solid line:
+        // My understanding is that a solid line should visualize the
+        // magnitude of the value.
+        // between marks.min and value if there is a marks.min
+        // between marks.max and value if there is no marks.min
+        // FIXME: maybe add an "origin" flag, which would be the origin
+        // of the magnitude line between origin and value, if present
+
+        if(origin !== null)
+            magnitude = [origin, value];
+        else if (marksMin !== null)
+            magnitude = [marksMin, value];
+        else if (marksMin !== null)
+            magnitude = [marksMax, value];
+
+        // value potential indicator, solid line but opacity = .5 to make
+        // it less dominant.
+        // If there is a marks.min and a marks.max, between value and marks.max
+        // should be everywhere, where the value can go.
+        // so, easiest is to draw it as one line, can take care of "gaps"
+        // later. Gaps are where the magnitude indicator is drawn.
+
+        // from marks.min or min - offset (to indicate unboundedness)
+        // to marks.max or max + offset (to indicate unboundedness)
+        // the unboundedness is indicated, because the value won't ever
+        // cover it, because it's outside of the box.
+        potential = [
+            marksMin !== null
+                    ? marksMin
+                    : min - 0.02
+          , marksMax !== null
+                    ? marksMax
+                    : max + 0.02
+        ];
+
+        // value overflow indicator, {red?} line
+        // between value and marks.min if value < marks.min
+        // beween value and marks.max if value > marks.max
+        if(marksMin !== null && value < marksMin)
+            overflow = [value, marksMin];
+        else if(marksMax !== null && value > marksMax)
+            overflow = [value, marksMax];
+
+        // unreachable indicator, dashed line:
+        // if marks are outside of the potential, they serve as as scale
+        // but they are unreachable.
+        // between global min and marks.min if global min < marks.min
+        // between global max and marks.max if global max > marks.max
+        if(marksMin !== null && min < marksMin)
+            unreachables.push([min, marksMin]);
+        if(marksMax !== null && max > marksMax)
+            unreachables.push([max, marksMax]);
+
+
+        // potential may not cover magnitude
+        potential = [potential];
+        if (magnitude !== null) {
+            potential = _cutout(potential, magnitude);
+            magnitude = [magnitude];
+        }
+
+        if (overflow !== null)
+            // unreachable{Low|high} may not cover overflow
+            unreachables = _cutout(unreachables, overflow);
+
+
+        if (magnitude !== null && overflow !== null)
+            // magnitude may not cover overflow
+            magnitude = _cutout(magnitude, overflow);
+
+        _drawRanges(elem, 'potential', potential);
+        _drawRanges(elem, 'unreachable', unreachables);
+        if (magnitude !== null)
+            _drawRanges(elem, 'magnitude', magnitude);
+        if (overflow !== null)
+            _drawRanges(elem, 'overflow', [overflow]);
+    }
+
+    /**
+     * Attention: needs a `this` value (=state)
+     */
+    function _draw(container, item) {
+        // jshint validthis: true
+        // clean the slate
+        while(container.lastChild)
+            container.removeChild(container.lastChild);
+
+        // parse the arguments of uiItem and draw the wiget accordingly.
+        // TODO: UIArguments parse the values as well, or have access to
+        // the parsed values.
+
+        var uiArgs = item.uiItem.arguments.slice(1)
+          , argsString = uiArgs.join(' ')
+          // adhoc caching, no need to parse this for each draw
+          , args = this.args = this.argsString !== argsString
+                    ? parseArgs(uiArgs)
+                    : this.args
+          , marks = args.get('mark')
+          , minMax = getMinMax(marks, item.uiItem)
+          , min = minMax[0]
+          , max = minMax[1]
+          ;
+        this.argsString = argsString;
+        drawLines(container, item.uiItem.value, min, max, marks);
+
+        // if min === max this fails
+        drawItems(container, 'mark', marks.marks.map(_getValue),min, max);
+        if(marks.min !== null)
+            drawItems(container, 'min', [marks.min.value], min, max);
+        if(marks.max !== null)
+            drawItems(container, 'max', [marks.max.value], min, max);
+        drawItems(container, 'handle', [item.uiItem.value], min, max);
     }
 
     function numberDirective() {
@@ -549,12 +869,13 @@ define([
             // one listener for all mousedowns for now
             element.on('mousedown', init.bind(null, ctrl.item));
 
-            var svg = element[0].ownerDocument.createElementNS(svgns, 'svg')
-              , redrawHandler = draw.bind(null, svg, ctrl.item)
+            var container = element[0].ownerDocument.createElement('div')
+              , redrawHandler = _draw.bind(Object.create(null), container, ctrl.item)
               , subscription = ctrl.item.on('update', redrawHandler)
               ;
+            container.classList.add('slider-canvas');
             redrawHandler();
-            element.append(svg);
+            element.append(container);
             // It's likely that item gets destroyed now as well.
             // But, you can't know that for sure in here!
             element.on('$destroy', function() {

@@ -75,6 +75,44 @@ mtk-cps-panel {
     font-family: monospace;
 }
 
+mtk-cps-ui-number{
+    .slider-canvas {
+        position: relative;
+        width: 80%;
+        overflow: visible;
+        background: #ddd;
+        height: 20px;
+    }
+    .line {
+        border-top-width: 2px;
+        height: 0;
+        margin-top: 9px;
+    }
+
+    .line.type-magnitude,
+    .line.type-potential {
+        border-top-color: black;
+        border-top-style: solid;
+    }
+    .line.type-potential {
+        opacity: .2;
+        border-top-style: dotted;
+    }
+    .line.type-unreachable {
+        border-top-color: white;
+        border-top-style: dashed;
+    }
+    .line.type-overflow {
+        border-top-color: red;
+        border-top-style: solid;
+    }
+
+    .slider-item.type-mark {
+        fill: white;
+        stroke: black;
+    }
+}
+
 
 bef-canvas svg {
     path {
