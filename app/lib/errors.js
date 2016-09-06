@@ -9,6 +9,7 @@ define([
 
     makeError('BEOM', undefined, errors.Error);
     makeError('Font', undefined, errors.BEOM);
+    makeError('CPSUI', undefined, errors.Error);
 
 
     return errors;

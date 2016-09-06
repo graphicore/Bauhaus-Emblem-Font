@@ -1,6 +1,11 @@
 
 scene {
-    ui: UI 40;
+    ui:  UI (18.52)
+"precision" -2
+"delta" -1
+"mark limiting" -50
+"mark limiting" 50
+"mark origin" 0 ;
 }
 
 @namespace(scene) {
