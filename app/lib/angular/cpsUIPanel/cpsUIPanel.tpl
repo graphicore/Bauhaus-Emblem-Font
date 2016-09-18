@@ -1,5 +1,3 @@
-<h1>Hello {{ctrl.element.toString()}}</h1>
-
 <ol>
 <li ng-repeat="item in ctrl.items"
         ng-switch="item.type">
