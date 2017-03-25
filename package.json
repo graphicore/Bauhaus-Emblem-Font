@@ -1,0 +1,31 @@
+{
+  "name": "bauhaus-emblem-font",
+  "version": "0.0.0",
+  "description": "A tool to create circular fonts like the one used by Oskar Schlemmer for the Bauhaus emblem.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/graphicore/Bauhaus-Emblem-Font"
+  },
+  "keywords": [
+  ],
+  "author": "Lasse Fister <commander@graphicore.de>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/graphicore/Bauhaus-Emblem-Font/issues"
+  },
+  "homepage": "https://github.com/graphicore/Bauhaus-Emblem-Font",
+  "devDependencies": {
+    "bower": "*"
+  },
+  "dependencies": {
+    "commander": "git://github.com/graphicore/commander.js.git#atem-integration",
+    "express": "^4.13.4",
+    "helmsman": "^1.0.3",
+    "lie": "^3.0.2",
+    "requirejs": "^2.2.0"
+  }
+}

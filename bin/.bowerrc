@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+"use strict";
+
+
+exports.command = {
+    description: 'Serve an Atem-IO REST file system.'
+  , arguments: '[project]'
+};
+
+if (require.main === module) {
+
+var requirejs = require('requirejs')
+  , configure = requirejs('./node-config')
+  , path = require('path')
+  , program = require('commander')
+  , express = require('express')
+  ;
+configure(requirejs);
+
+program._name = path.basename(process.argv[1]).replace('-', ' ');
+program.arguments(exports.command.arguments)
+    .description(exports.command.description);
+
+
+requirejs([
+    'Atem-IO/io/staticNodeJS'
+  , 'Atem-IO/errors'
+  , 'Atem-IO/node-server-backend/restfs'
+], function (
+    io
+  , errors
+  , restfs
+) {
+    function getPort(program) {
+        if(program.port === undefined)
+            program.port = parseInt(process.env.MOM_DEV_PORT) || 0;
+        return program.port;
+    }
+    function getBaseDir(projectDir){
+        if (projectDir === undefined || projectDir === '')
+            return process.cwd();
+        return projectDir + (projectDir.slice(-1) != '/' ? '/' : '');
+    }
+
+    function main (projectDirArgument) {
+        var baseDir = getBaseDir(projectDirArgument)
+          , app = express()
+          , server = app.listen(getPort(program))
+          ;
+
+        // mount the project (writable)
+        app.use('/', restfs(baseDir));
+
+        if (server.address())
+            console.warn('Serving! Open http://localhost:'+server.address().port+' in your browser.');
+    }
+    program.action(main)
+           .option('-p, --port <n>', 'The port to listen on (default: environment variable MOM_DEV_PORT (if unset, random))', parseInt)
+           ;
+    program.parse(process.argv);
+});
+
+}
