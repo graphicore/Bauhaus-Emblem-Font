@@ -9,6 +9,8 @@ define([
 
     makeError('BEOM', undefined, errors.Error);
     makeError('Font', undefined, errors.BEOM);
+    makeError('GlyphIDMissing', undefined, errors.Font);
+
     makeError('CPSUI', undefined, errors.Error);
 
 

@@ -3,36 +3,46 @@ define([
   , 'require/domReady'
   , 'Atem-IO/io/static'
   , 'Atem-IO/io/InMemory'
+  , 'Atem-IO/io/Mounting'
+  , 'Atem-IO/tools/zipUtil'
+  , 'Atem-IO/tools/readDirRecursive'
   , 'CPSController'
   , 'Atem-CPS/CPS/RuleController'
   , 'Atem-CPS/CPS/SelectorEngine'
   , 'Atem-Pen-Case/pens/SVGPen'
   , 'BEF/BEOM/Root'
   , 'BEF/foresting/SceneBuilder'
-  , 'BEF/foresting/FontBuilder'
+  , 'BEF/foresting/FontInfo'
   , 'angular'
   , 'BEF/angular/app'
   , 'Atem-CPS-Toolkit/services/dragAndDrop/DragDataService'
   , 'Atem-CPS-Toolkit/services/dragAndDrop/DragIndicatorService'
   , './cpsTools'
+  , 'yaml'
 ], function(
     errors
   , domReady
   , staticIO
   , InMemoryIO
+  , MountingIO
+  , zipUtil
+  , readDirRecursive
   , CPSController
   , RuleController
   , SelectorEngine
   , SVGPen
   , Root
   , SceneBuilder
-  , FontBuilder
+  , FontInfo
   , angular
   , angularApp
   , DragDataService
   , DragIndicatorService
   , cpsTools
+  , yaml
 ) {
+    "use strict";
+    /* globals setTimeout */
     var svgns = 'http://www.w3.org/2000/svg'
       , ValueError = errors.Value
       ;
@@ -50,7 +60,7 @@ define([
     };
 
     function degree(theta) {
-        return theta * 180/Math.PI;
+        return theta * 180 / Math.PI;
     }
 
     function drawGlyph(glyph, pen) {
@@ -145,28 +155,227 @@ define([
         }
     }
 
-    var cpsFile = 'main.cps';
+    var rootDir = 'data/'
+      , cpsLibIoMounts = [
+            // add more of these configuration objects to include more
+            // libraries each object yields in a call to MountingIO.mount
+            // the keys correlate with the argument names of MountingIO
+            // however, Project does some augmentation.
+            {
+                  io: staticIO
+                , mountPoint: 'lib/std'
+                , pathOffset: rootDir+ 'lib/cpsLib'
+            }
+        ];
 
-    function getIO() {
-        var io = new InMemoryIO();
-        io.mkDir(false, 'cps');
-        io.writeFile(false, 'cps/'+cpsFile,  staticIO.readFile(false, 'project/cps/'+cpsFile));
-        return io;
+    var cpsFile = 'main.cps'
+      , cpsDir = 'cps'
+      ;
+    // function getIO() {
+    //     var io = new InMemoryIO();
+    //     io.mkDir(false, 'cps');
+    //     // this creates a copy
+    //     io.writeFile(false, 'cps/'+cpsFile,
+    //                     staticIO.readFile(false, 'project/cps/' + cpsFile));
+    //     return io;
+    // }
+
+    // Create a new, empty project
+    function newProject() {
+        // TODO: I think this should copy the cpsLib/initialProject/main.cps file and
+        // put it to a writable location.
+        // It's kind of strange, not to have a useable cps file with a
+        // new project.
+        // Maybe we could have a whole initial directory to be copied.
+                // I think this should go into  new RuleController! Do I?
+        // getIO used to do this
+        var io = new InMemoryIO() // we'll save to this
+          , project
+          ;
+        io.ensureDirs(false, cpsDir);
+        staticIO.copyRecursive(false, rootDir+'lib/cpsLib/initialProject', /* to: */ io, cpsDir);
+
+        // assert file exists cpsDir + '/main.cps'
+        project = new Project(io, cpsDir, cpsFile);
+        project.init();
+        return project;
+        // current project dir:
+        // projectio/
+        //      cps/
+        //          main.cps
+        //      font.yaml
+        //
+        // Intermediately it would be indeed easier to have the font as a
+        // part of project.yaml, because, without metacomponents it's not
+        // normalized (like databse normalized) anyways.
+        // Then:
+        // projectio/
+        //      project.yaml
+        //      cps/
+        //          main.cps # could be anywhere though, but this is the default
+        //          ... # more cps files for @include
+        //      lib/std/
+        //          ... # mounted, read only, cps lib
+        //
+        //
+        // planned project dir:
+        // projectio/
+        //      project.yaml
+        //      cps/
+        //          main.cps # could be anywhere though, but this is the default
+        //          ... # more cps files for @include
+        //      fonts/
+        //          bauhaus.yaml
+        //          ... # eventually more fonts
+        //
+        //      lib/std/
+        //          ... # mounted, read only, cps lib
+        //      lib/fonts/
+        //          ... # mounted, read only, more fonts
     }
 
-    function main() {
+    // Load a project from a zip file
+    function loadProject(zipBlob) {
+        // what's the file format?
+        // zip with cps files + one project/BEOM file?
+        // so, the font in the beginning will be living in the project?
+        // kind of smalltalk-esque! but kind of nice as well.
+        // We should find a way, though to have many fonts, or at least
+        // different ones.
+        // Also, eventually we should ship "system fonts" with the app
+        // and mount them into the project. If we want to change them,
+        // a copy in the project should be created.
+        // Needs a write protection!
+        //
+        // If not zipped, all would have to be dumped into one file
+        // This sounds either like a YAML-IO and heavily relies on double
+        // encoding, or I make a container file format.
+        // the latter is not that bad, considering that we can cheaply
+        // put our cps files into a key value storage and from there into
+        // an InMemory io.
+        // Unlike Metapolator this can be done simply and should happen.
+        // The metapolator ufo model is not a topic here.
+        // keys:
+        // `beom` the whole object tree
+        // `cps` key/value pairs of cps file paths
+        // `current_main` path to current  main file.
+        // more?
+        var io = new InMemoryIO();
+        return zipUtil.unpack(true, zipBlob, io, '/').then(function() {
+            var project = new Project(io, cpsDir, cpsDir + '/' + cpsFile);
+            project.load();
+            return project;
+        }).then(null, function(err) {
+            console.error('loadProject: Something went wrong!');
+            console.log(err);
+            throw err;
+        });
+    }
+
+    /**
+     * returns a promise from zipUtil.pack with a blob as value
+     */
+    function zipProject(project) {
+        project.save();
+        return zipUtil.pack(true, project.rawIO, '', 'blob');
+    }
+
+    function initMountingIO(io, cpsLibIoMounts) {
+        // FIXME: this setup loading should be part of MountingIO
+        var mio = new MountingIO(io)
+          , i, l
+          ;
+        for(i=0,l=cpsLibIoMounts.length;i<l;i++) {
+            // no two mount points may be the same!
+            mio.mount(
+                    // just a kind of a hard link in the second case
+                    cpsLibIoMounts[i].io || io
+                    // the default is lib, and a "lib/" should be the beginning
+                    // of a configured mountPoint as well. Otherwise
+                    // Project may start to write to the cpsLibIo
+                    // (There's a write protection open to be implemented …)
+                    , [cpsDir, cpsLibIoMounts[i].mountPoint || 'lib'].join('/')
+                    // the default is ''
+                    , cpsLibIoMounts[i].pathOffset
+                    , cpsLibIoMounts[i].allowAboveRoot
+            );
+        }
+
+        return mio;
+    }
+
+    function Project(io, cpsDir, cpsFile) {
+        this.io = initMountingIO(io, cpsLibIoMounts);
+        this.rawIO = io;
+        this._cpsFile = cpsFile;
+
+        this.selectorEngine = new SelectorEngine();
+        this.ruleController = new RuleController(this.io, cpsDir
+                        , cpsTools.initializePropertyValue
+                        , this.selectorEngine.selectorEngine
+                        );
+        // For a new project, the cps file should be probably empty.
+        // But maybe, there can be some kind of minimal useable CPS file
+        // Probably doing even less than the circle font.
+        // This will take a cps library dir, to be added to the project.
+        this.controller = new CPSController( this.ruleController
+                                    , Root.factory, this.selectorEngine);
+
+        this.scene = null;
+        this.builder = null;
+        // must run either init or load now
+    }
+
+    var _p = Project.prototype;
+    _p.constructor = Project;
+
+    _p.init = function() {
+        this.controller.rootNode.attachData('cpsFile', this._cpsFile);
+        // todo: move main() FontBuilder stuff here s...
+
+        var fontData = staticIO.readFile(false, 'project/font.yaml')
+          , root = this.controller.rootNode
+          , fontInfo = FontInfo.fromYAML(root.font, fontData)
+          ;
+        this.scene = root.scene;
+        this.scenebuilder = new SceneBuilder(fontInfo, this.scene);
+    };
+
+    _p.load = function() {
+        var yamlString = this.io.readFile(false, 'project.yaml')
+          , data = yaml.safeLoad(yamlString)
+          , root
+          , fontInfo
+          ;
+        this.controller.rootNode.loadTree(data);
+        root = this.controller.rootNode;
+        fontInfo = new FontInfo(root.font);
+        this.scene = root.scene;
+        this.scenebuilder = new SceneBuilder(fontInfo, this.scene);
+    };
+
+    _p.save = function () {
+        // FIXME: still a stub. never tested.
+        var data, yamlString;
+        // save cps files
+        this.ruleController.saveChangedRules(false);
+        data = this.controller.rootNode.dumpTree();
+        yamlString = yaml.safeDump(data);
+        this.io.writeFile(false, 'project.yaml', yamlString);
+    };
+
+
+    /**
+     * This function is temporarily bad design on purpose.
+     * Will be refactored.
+     */
+    function temp_bootstrapUI(project) {
         /* global document:true, window:true*/
-        var cpsDir = 'cps'
-          , io = getIO()
-          , fontData = staticIO.readFile(false, 'project/font.yaml')
-          , selectorEngine = new SelectorEngine()
-          , ruleController = new RuleController(io, cpsDir, cpsTools.initializePropertyValue, selectorEngine)
-          , controller = new CPSController( ruleController, Root.factory, selectorEngine, cpsFile)
-          , root = controller.rootNode
-          , svg = document.createElementNS(svgns, 'svg')
-          , fontBuilder = FontBuilder.fromYAML(root.font, fontData)
-          , scene = root.scene
-          , builder = new SceneBuilder(fontBuilder, scene)
+
+        var svg = document.createElementNS(svgns, 'svg')
+            // need these for updates etc...
+          , scene = project.scene
+          , builder = project.scenebuilder
           ;
 
         svg.setAttribute('width', '600px');
@@ -174,6 +383,7 @@ define([
         svg.style.border = '1px solid black';
 
         var input = document.createElement('textarea');
+        // FIXME: this is only OK for brand new projects.
         input.value = 'ALL YOUR BAUHAUS ARE BELONG TO US';
         input.style.verticalAlign = 'top';
 
@@ -188,7 +398,6 @@ define([
             dropNextChange = true;
             while(svg.children.length)
                 svg.removeChild(svg.lastChild);
-
             // do we want to do this even when this.value did not change?
             if(lastVal !== this.value) {
                 lastVal = this.value;
@@ -272,6 +481,11 @@ define([
         };
 
         input.addEventListener('input', onChange.bind(undefined, true));
+
+        // FIXME: We want this only for new projects, not for loaded ones
+        // because on loaded projects, the input field value may be out of
+        // sync with the actual scene (manual tampering?) and we don't want
+        // to destroy the actually saved OM by calling update.
         update.call(input, true);
 
         subscription = scene.on(['CPS-change'], function() {
@@ -307,8 +521,8 @@ define([
           , dragIndicatorService = new DragIndicatorService()
           ;
         angularApp.constant('cpsTools', cpsTools);
-        angularApp.constant('cpsController', controller);
-        angularApp.constant('ruleController', ruleController);
+        angularApp.constant('cpsController', project.controller);
+        angularApp.constant('ruleController', project.ruleController);
         angularApp.constant('dragDataService', dragDataService);
         angularApp.constant('dragIndicatorService', dragIndicatorService);
         angular.bootstrap(document, [angularApp.name]);
@@ -322,9 +536,28 @@ define([
             if(!win) return;
             document = win.document;
             content = document.createElement('pre');
-            content.innerText = ruleController.getRule(false, cpsFile) + '';
+            content.innerText = project.ruleController.getRule(false, cpsFile) + '';
             document.body.appendChild(content);
         };
     }
+
+    function main() {
+        // initializes a new project
+        var project = newProject();
+        //temp_bootstrapUI(project);
+
+        // zips the project
+        zipProject(project).then(function(zipBlob) {
+            // a way to start a download.
+            // download links are preferred though!
+            // window.open(URL.createObjectURL(zipBlob));
+
+            // round tripping. This is pretty stupid here, but the best
+            // way to see if we can load a zipped project, and a good way
+            // to debug.
+            loadProject(zipBlob).then(temp_bootstrapUI);
+        });
+    }
+
     return domReady.bind(null, main);
 });

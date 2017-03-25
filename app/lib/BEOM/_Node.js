@@ -2,10 +2,12 @@ define([
     'BEF/errors'
   , 'Atem-CPS/OMA/_Node'
   , 'Atem-Math-Tools/Vector'
+  , 'BEF/cpsTools'
 ], function(
     errors
   , Parent
   , Vector
+  , cpsTools
 ) {
     "use strict";
 
@@ -25,6 +27,10 @@ define([
             return this._validators[key];
         return null;
     };
+
+    _p.loadData = function(data) {
+        this._loadData(cpsTools.makeProperty, data);
+    }
 
     // common validator functions are shared here
     function validateVector(key, value) {
