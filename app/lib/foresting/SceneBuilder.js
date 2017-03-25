@@ -29,7 +29,6 @@ define([
 
     _p._set = function(line, glyph, styleDict, maxLineLength) {
         var lineLength;
-
         line.add(glyph);
         lineLength = styleDict.get('length', 0);
 
