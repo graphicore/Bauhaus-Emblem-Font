@@ -42,7 +42,7 @@ define([
   , yaml
 ) {
     "use strict";
-    /* globals setTimeout */
+    /* globals setTimeout, clearTimeout */
     var svgns = 'http://www.w3.org/2000/svg'
       , ValueError = errors.Value
       ;
@@ -392,10 +392,10 @@ define([
         // is causing a loop. It seems that this bever stops. check!
         var lastVal = null
           , subscription = null
-          , dropNextChange = false
+          , timeout = null
           ;
         var update = (function () {
-            dropNextChange = true;
+            timeout = null;
             while(svg.children.length)
                 svg.removeChild(svg.lastChild);
             // do we want to do this even when this.value did not change?
@@ -406,81 +406,25 @@ define([
             else
                 // reflow ...
                 builder.reflow();
+            // Don't update for changes caused by reflow/setScene, this
+            // concept works since/because StyleDict triggers synchronously!
+            // Thus, all changes caused by the reflow are already registered
+            // in the scene and its children, flushStyleChanges also flushes
+            // the children.
+            scene.flushStyleChanges();
             drawScene(scene, svg);
         }).bind(input);
 
         var onChange = function() {
-            if(dropNextChange) {
-                // I didn't have enough control to
-                // prevent a never ending feedback loop here.
-                // This is a second attempt, by just droping calls to change
-                // for a short time, untill supposedly all changes from
-                // the reflow are over.
-                // This is not perfect either and it will most probably fail
-                // sooner or later.
-                // below is a description of the previous failed attempt.
-
-                // so I had to invent this method.
-                // Though, it feels like this is preventing to
-                // achieve good line breaking in certain cases.
-                // FIXME: or maybe its not helping at all?
-                // scene.flushStyleChanges();
-
-                // What s this all about:
-
-                // 1. The reflow action causes a lot of style changes.
-                // 2. the style changes caused by **that reflow action**
-                //    should not lead to another reflow (but it does)
-                // 3. hence we delete all of the changes caused by the reflow
-                // 4. occasionally, we delete changes caused by other actions
-                //      e.g. the change of ui
-                // 5. Then, the styledict that should cause the ui-panel to
-                //    update does not update.
-                // 6. It seems that not all reflow actions require us to
-                //    flushStyleChanges, only some cause the loop to happen.
-                //    IT SEEMS that its fatal when we had changes in the OM
-                //    like new lines or new Glyphs
-
-                // I think, what could work, if we could control that only
-                // events that happened after the listener was attached
-                // are send to the listener, we could just unsubscribe
-                // while doing the updates.
-                // So, either this can happen in StyleDict OR we add another
-                // more "synchronous" event handling style, that calls
-                // back when the styledict is available again.
-                // Also, promises could work somehow.
-
-                // Here is another comment from the former implementation of
-                // StyleDict.flushStyleChanges, which is now removed.
-
-               /**
-                * I hope we don't stick with this exactly like it is here, but right
-                * now I need this kind of control! Used via _Node.flushStyleChanges
-                * in Bauhaus Emblem Font to break an infinite feedback loop.
-                *
-                * I think this may help to find a better approach for all the messaging
-                * in stylDict and OMA, so it's good to have it here, even though the
-                * concept is sub-optimal.
-                *
-                * This turns out to be the source of a subtle bug in Bauhaus Emblem Font
-                * itself. Who would have thought this!
-                * The problem is that some of the change notifications are now missed
-                * in the CPS-UI implementation, and probably somewhere else as well.
-                *
-                * The mentioned feedback loop must be broken in another fashion!
-                *
-                */
-                if(dropNextChange === true)
-                    dropNextChange = {
-                        timeout: setTimeout(function(){ dropNextChange = false;}, 15)
-                    };
-                // dropping change
-                return;
-            }
-            update();
+            if(timeout)
+                clearTimeout(timeout);
+            // redrawing is expensive and locks up the UI at the moment
+            // this debonces feedback on the canvas, the trade is that
+            //  the sliders run smoothly.
+            timeout = setTimeout(update, 70);
         };
 
-        input.addEventListener('input', onChange.bind(undefined, true));
+        input.addEventListener('input', onChange.bind(null, true));
 
         // FIXME: We want this only for new projects, not for loaded ones
         // because on loaded projects, the input field value may be out of
@@ -543,6 +487,24 @@ define([
 
     function main() {
         // initializes a new project
+
+        // now, newProject (+Project.init) is the only reason why we need the
+        // Atem-IO-REST server.
+        // There should be a nicer version of this. Maybe a script hat creates
+        // a new project zip from a directory and a unit test, that checks that
+        // the zip and the original source are in sync. That way we can
+        //      a) easily change the initial project
+        //      b) get rid of the Atem-IO-REST server, which also can write to disk (bad)
+        // We'll probably have more than one initial projects, they all should be created
+        // (zipped) by a script and tested by Travis.
+        //
+        // Metadata for the projects should be available outside of the zip
+        // so the user can have a description of the contents.
+        //
+        //
+        // We need now load/save interfaces.
+        // Add a local storage fs? would be nice to have.
+
         var project = newProject();
         //temp_bootstrapUI(project);
 
