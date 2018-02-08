@@ -15,10 +15,13 @@ define([
     var _p = Glyph.prototype = Object.create(Parent.prototype);
     _p.constructor = Glyph;
 
+    _p._cps_getters = {
+    };
+
     //inherit from parent
     (function(source) {
         for(var k in source) if(!this.hasOwnProperty(k)) this[k] = source[k];
-    }).call(_p._cps_whitelist, Parent.prototype._cps_whitelist);
+    }).call(_p._cps_getters, Parent.prototype._cps_getters);
 
     _p.validators = Object.create(null);
     _p.validators.before = _p.validators.width = _Node.validateNumber;

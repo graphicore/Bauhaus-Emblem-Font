@@ -1,13 +1,18 @@
+//jshint esversion:6
 define([
-    'BEF/BEOM/Line'
+    'BEF/errors'
+  , 'BEF/BEOM/Line'
   , 'BEF/BEOM/Glyph'
   , 'BEF/diff'
 ], function(
-    Line
+    errors
+  , Line
   , Glyph
   , diff
 ) {
     "use strict";
+
+    var assert = errors.assert;
 
     function SceneBuilder(fontBuilder, scene) {
         this._fontBuilder = fontBuilder;
@@ -17,29 +22,31 @@ define([
 
     var _p = SceneBuilder.prototype;
 
-    _p._cast = function(referenceGlyph) {
-        // We'll make a lot of duplicates per glyph. There's not yet a
-        // smarter way in OMA (metacomponents FTW …)
-        // 2 = cloneClasses, 8 = cloneAttachedData, 10 = setBaseNode
-        var glyph = referenceGlyph.clone(2 | 8 | 0x10);
+    _p._castAndInsert = function(line, idx, referenceGlyph) {
+        var glyphInstance = line.addChild(referenceGlyph.pattern, idx);
+        glyphInstance.setBaseInstances([referenceGlyph]);
+        // TODO: the original code did clone classes and attachedData
+        // from referenceGlyph. Do we need this here? we can just copy
+        // them by hand to the instance. classes could indeed be helpful
+        // for finer control in CPS, what is attachedData needed for though?
+        // In the case of `attachedData`, the referenceGlyph is still
+        // available via baseInstances, we can read it from there.
+
         // can't use the glyph id here, because there will be duplicates
-        glyph.setClass('ref_' + glyph.baseNode.id);
-        return glyph;
+        glyphInstance.setClass('ref_' + referenceGlyph.id);
+        return glyphInstance;
     };
 
-    _p._set = function(line, glyph, styleDict, maxLineLength) {
-        var lineLength;
-        line.add(glyph);
+    _p._set = function(line, referenceGlyph, styleDict, maxLineLength) {
+        var lineLength, glyphInstance;
+        glyphInstance = this._castAndInsert(line, -1, referenceGlyph);
         lineLength = styleDict.get('length', 0);
-
         // TODO: add kerning?
         if(lineLength > maxLineLength) {
-            line.remove(glyph);
-            // line is full
-            return true;
+            line.removeChild(glyphInstance);
+            return true;// line is full
         }
-        // line can try at least one more
-        return false;
+        return false;// line can try at least one more
     };
 
     _p._setLine = function(line, glyphs, index) {
@@ -50,37 +57,29 @@ define([
             , maxLength = styleDict.get('maxLength')
             ;
 
-        for(i=index,l=glyphs.length;i<l; i++) {
+        for(i=index,l=glyphs.length;i<l;i++) {
             lineIsFull = this._set(line, glyphs[i], styleDict, maxLength);
             if(lineIsFull)
                 break;
             consumed += 1;
-            if (glyphs[i].baseNode.id === 'br')
+            if (glyphs[i].id === 'br')
                 break;
         }
 
         return consumed;
     };
 
-    _p._setLines = function(glyphs, lines /* optional */) {
+    _p._setLines = function(glyphs) {
         var i, l, line
           , consumed
           , glyphs_
           ;
         glyphs_ = glyphs.concat(this._leftOver);
+        // this is for apeirophobia
         this._leftOver = [];
 
-
-        for(i=0,l=glyphs_.length;i<l;) {
-            // TODO: this is a very good occasion for a generator
-            if(lines && lines.length) {
-                line = lines.shift();
-            }
-            else {
-                line = new Line();
-                this._scene.add(line);
-            }
-
+        for(i=0,l=glyphs_.length;i<l;/* i is increased by consumed */) {
+            line = this._scene.addNewChild('line', -1);
             consumed = this._setLine(line, glyphs_, i);
             if(!consumed) {
                 // If consumed is 0 we may never finish.
@@ -105,15 +104,14 @@ define([
     };
 
     _p._applyPatch = function(script, types) {
-        var i, l, cmd, line
+        var i, l, cmd, line, glyphIndex
           , currentLine = null
           , offset = 0
-          , firstLineIndex = null, idx, lineItemIndex, type
+          , firstLineIndex = null, idx, lineItemIndex
             // The indexes in types correspond to the indexes in the commands
             // of the patch script. We use them to find the right line to
             // operate on and an offset from glyph indexes to line indexes.
-          , lineData = types.map(function(t){return [t.parent, t.index];})
-          , data
+          , lineData = types.map(glyph => [glyph.parent, glyph.index])
           ;
 
         for(i=0,l=script.length;i<l;i++) {
@@ -121,12 +119,11 @@ define([
             // this happens if the an insert appends to the end
             lineItemIndex = lineData.length === cmd[1] ? cmd[1]-1 : cmd[1];
 
-            data = lineData[lineItemIndex];
-            line = data[0];
+            [line, glyphIndex] = lineData[lineItemIndex];
             if(line !== currentLine) {
                 // The line changed. recalculate the offset of the command
                 // indexes to the line indexes
-                offset = data[1] - lineItemIndex;
+                offset = glyphIndex - lineItemIndex;
                 currentLine = line;
                 if(firstLineIndex === null)
                     // all lines from this on will have to reflow
@@ -135,12 +132,12 @@ define([
 
             idx = cmd[1] + offset;
             if(cmd[0]==='D') {
-                line.splice(idx, 1);
+                // !! no, do this via pattern!
+                line.pattern.removeAt(idx, 1);
                 offset -= 1;
             }
             else if (cmd[0] === 'I') {
-                type = this._cast(cmd[2]);
-                line.splice(idx, 0, type);
+                this._castAndInsert(line, idx, cmd[2]);
                 offset += 1;
             }
             else
@@ -156,6 +153,8 @@ define([
     I leave it in here as a reference for the current reflow method,
     which is much faster, but also much more complex and it reuses less
     common code than this implementation via `this._setLines(glyphs, lines);`
+
+    NOTE: _setLines doesn't use the `lines` argument anymore
 
     _p.reflow = function(firstLineIndex) {
         var lines = this._scene.children.slice(firstLineIndex || 0)
@@ -182,38 +181,39 @@ define([
     };
     */
 
+    function isLineBreak(glyph) {
+        return glyph.baseInstances[0].id === 'br';
+    }
+
     function manageLineBreaks (line, lines) {
         var found = null
-          , i, l, newLine, children
+          , i, l, newLine, amount
           ;
         // don't check the last glyph, that's already covered
         // below we are only interested in "new" breaks
         // if a break would be at the end of the line, it would be
         // alright. Hence: l=line.childrenLength-1
         for(i=0,l=line.childrenLength-1;i<l;i++) {
-            if(line.getChild(i).baseNode.id === 'br') {
+            if(isLineBreak(line.getChild(i))) {
                 found = i;
                 break;
             }
         }
         if(found === null)
             return;
-        children = [];
-        for(i=found+1,l=line.childrenLength;i<l;i++)
-            children.push(line.getChild(i));
-        newLine = new Line();
-        newLine.splice(0,0, children);
+        //children = []
+        amount = line.childrenLength - found;
+        newLine = line.parent.addNewChild('line', line.index + 1);
+        moveInstances(line, found, amount, newLine, 0);
+        // prepend new line to the beginning of lines ...
         lines.unshift(newLine);
-        if(line.parent)
-            line.parent.splice(line.index + 1, 0, newLine);
         return true;
     }
 
     function getNextLine(scene, nextLines) {
         var line;
         if(!nextLines.length) {
-            line = new Line();
-            scene.add(line);
+            line = scene.addNewChild('line', - 1);
             nextLines.push(line);
         }
         return nextLines[0];
@@ -225,6 +225,76 @@ define([
             if(lines[i].childrenLength)
                 return lines[i].getChild(0);
         return null;
+    }
+
+
+    /**
+     * This is a generally useful function, should be in some kind of
+     * standard lib.
+     *
+     * NOTE: that move manipulates the pattern trees!
+     */
+    function moveInstances(oldParent, oldStartIndex, amount, newParent, newStartIndex) {
+        var oldInstances = oldParent.children.slice(oldStartIndex, oldStartIndex + amount)
+          , patterns = oldInstances.map(i=>i.pattern)
+          , instancesData
+          , newIndex, newInstances
+          ;
+
+        // START get instanceData
+        instancesData = oldInstances.map(startInstance => {
+            var data = Object.create(null);
+            startInstance.walkTreeDepthFirst(instance => {
+                data[instance.getIndexPath(startInstance)] = instance.data;
+            });
+            return data;
+        });
+        // END get instanceData
+
+        oldParent.pattern.removeAt(oldStartIndex, oldInstances.length);
+        newIndex = newParent.pattern.insertAt(newStartIndex, patterns);
+        newInstances = newParent.children.slice(newIndex, newIndex + oldInstances.length);
+
+        // START set instanceData
+        function _setData(data, startInstance, instance) {
+            var instanceData = data[instance.getIndexPath(startInstance)];
+            // We just captured the instanceDatait from the same pattern:
+            assert(!!instanceData, 'InstanceData must exist here!');
+            instance.loadData(instanceData);
+        }
+
+        for(let i=0,l=instancesData.length;i<l;i++) {
+            let data = instancesData[i]
+              , startInstance = newInstances[i]
+              , setData = _setData.bind(null, data, startInstance)
+              ;
+            startInstance.walkTreeDepthFirst(setData);
+        }
+        // END set instanceData
+        return newInstances;
+    }
+
+    function moveInstance(oldParent, oldIndex, newParent, newIndex) {
+        return moveInstances(oldParent, oldIndex, 1, newParent, newIndex)[0];
+    }
+
+    function removeEmptyLines (scene) {
+        // cleaning up: remove unused lines from the end of this._scene
+        var lines = scene.children
+          , deleteCount = 0
+          , startIndex
+          , i, line
+          ;
+        for(i=lines.length-1;i>=0;i--) {
+            line = lines[i];
+            if(line.childrenLength)
+                // no more unused lines
+                break;
+            deleteCount += 1;
+            startIndex = i;
+        }
+        if(deleteCount)
+            scene.pattern.removeAt(startIndex, deleteCount);
     }
 
     /**
@@ -247,54 +317,53 @@ define([
      */
     _p.reflow = function(firstLineIndex) {
         var lines = this._scene.children.slice(firstLineIndex || 0)
-          , i, line
+          , line
           , styleDict, maxLength
-          , lastGlyph, nextLine = null, lineIsFull
+            // uses styleDict and maxLength from this closure
+          , checkLineIsFull = () => styleDict.get('length', 0) > maxLength
+          , nextLine = null, lineIsFull
           ;
-
         while( (line = lines.shift()) ) {
             manageLineBreaks(line, lines);
-
             styleDict = line.getComputedStyle();
             maxLength = styleDict.get('maxLength');
-            if(styleDict.get('length', 0) > maxLength) {
-                // remove last glyph and unshift it to the next line
+
+            if(checkLineIsFull()) {
+                // remove last glyphs and unshift to the next line
                 nextLine = null;
                 do {
                     // What if line has no children? Is that an Apeirophobia error?
                     // only if there are glyphs left to be set.
                     if(!line.childrenLength) break;
-                    lastGlyph = line.splice(line.childrenLength-1, 1)[0];
                     if(!nextLine)
-                        nextLine = getNextLine(this._scene, lines);
-                    nextLine.splice(0, 0, [lastGlyph]);
-                } while(styleDict.get('length', 0) > maxLength);
+                        nextLine = getNextLine(line.parent, lines);
+                    // from the end of line to the start of nextLine;
+                    moveInstance(line, line.childrenLength - 1, nextLine, 0);
+                } while(checkLineIsFull());
             }
             else { // styleDict.get('length', 0) <= maxLength)
-                // get next glyph and append it to this line
-                lastGlyph = line.childrenLength && line.getChild(line.childrenLength-1);
-                lineIsFull = lastGlyph && lastGlyph.baseNode.id === 'br';
-
+                // get next glyphs and append to this line
+                let lastGlyph = line.childrenLength && line.getChild(line.childrenLength-1);
+                // this is true because styleDict.get('length', 0) <= maxLength)
+                // thus this line is only full if lastGlyph is a line break
+                lineIsFull = lastGlyph && isLineBreak(lastGlyph);
                 while( !lineIsFull && (lastGlyph = getNextGlyph(lines)) ) {
-                    lineIsFull = this._set(line, lastGlyph, styleDict, maxLength);
-                    lineIsFull = lineIsFull || lastGlyph.baseNode.id === 'br';
-                }
-                if(lastGlyph && !lastGlyph.parent) {
-                    nextLine = getNextLine(this._scene, lines);
-                    nextLine.splice(0, 0, [lastGlyph]);
+                    let movedGlyph = moveInstance(
+                            lastGlyph.parent, lastGlyph.index, line, -1);
+                    lineIsFull = checkLineIsFull();
+                    if(lineIsFull) {
+                        // move back, will be used in next iteration
+                        nextLine = getNextLine(line.parent, lines);
+                        moveInstance(
+                            movedGlyph.parent, movedGlyph.index, nextLine, 0);
+                    }
+                    else
+                        // inserted a line break
+                        lineIsFull = isLineBreak(lastGlyph);
                 }
             }
         }
-
-        // cleaning up: remove unused lines from the end of this._scene
-        lines = this._scene.children;
-        for(i=lines.length-1;i>=0;i--) {
-            line = lines[i];
-            if(line.childrenLength)
-                // no more unused lines
-                break;
-            this._scene.remove(line);
-        }
+        removeEmptyLines(this._scene);
     };
 
     _p.shape = function(text) {
@@ -332,17 +401,18 @@ define([
         var types, glyphs, newGlyphs, patch, firstLineIndex;
         if(!this._scene.childrenLength) {
             // initial
-            glyphs = this.shape(text).map(this._cast, this);
+            glyphs = this.shape(text);
             this._setLines(glyphs);
             return;
         }
         // update
         // there must be at least one line in the scene for this to work
         // but that's taken care of right above in the "initial" branch.
-        this._scene.children.forEach(function(line){
-            Array.prototype.push.apply(this, line.children);
-        }, (types = []));
-        glyphs = types.map(function(glyph){ return glyph.baseNode; });
+
+        types = [];
+        this._scene.children.forEach(line => types.push(...line.children));
+        glyphs = types.map(glyph => glyph.baseInstances[0]);
+
         newGlyphs = this.shape(text);
         patch = diff.getPatchScript(glyphs, newGlyphs);
         firstLineIndex = this._applyPatch(patch, types);

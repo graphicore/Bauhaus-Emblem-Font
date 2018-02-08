@@ -5,7 +5,7 @@ define([
 ) {
     "use strict";
 
-    function CPSController(ruleController, rootNodeFactory, selectorEngine) {
+    function CPSController(ruleController, rootInstance) {
         Parent.apply(this, arguments);
     }
 
