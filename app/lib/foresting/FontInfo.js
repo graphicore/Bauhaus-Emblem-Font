@@ -1,15 +1,12 @@
+//jshint esversion: 6
 define([
     'BEF/errors'
   , 'yaml'
   , 'BEF/cpsTools'
-  , 'BEF/BEOM/Glyph'
-  , 'BEF/BEOM/Command'
 ], function(
     errors
   , yaml
   , cpsTools
-  , Glyph
-  , Command
 ) {
     "use strict";
 
@@ -40,39 +37,39 @@ define([
             return glyphCode in this._glyphData;
         };
 
-        _p._setDataToNode = function(node, data) {
+        _p._setDataToInstance = function(instance, data) {
             var id = data.id
               , properties = data.properties
               , classes = data.classes
               ;
 
             if(id)
-                node.id = id;
+                instance.id = id;
 
             if(properties)
-                setProperties(node.properties, properties);
+                setProperties(instance.properties, properties);
 
             if(classes)
-                node.setClasses(classes);
+                instance.setClasses(classes);
         };
 
-        _p._setDataToGlyphNode = function(node, glyphCode, data) {
+        _p._setDataToGlyphInstance = function(instance, glyphCode, data) {
             if(!data.id)
                 throw new GlyphIDMissingError('Glyph id for glyph code "' + glyphCode
                                                         + '" is missing.');
-            node.attachData('glyphCode', glyphCode);
-            this._setDataToNode(node, data);
+            instance.attachData('glyphCode', glyphCode);
+            this._setDataToInstance(instance, data);
         };
 
-        _p._makeCommand = function(data) {
-            var command = new Command();
-            this._setDataToNode(command, data);
-            return command;
+        _p._addCommand = function(glyphInstance, data) {
+            var commandInstance = glyphInstance.addNewChild('command', -1);
+            this._setDataToInstance(commandInstance, data);
+            return commandInstance;
         };
 
-        _p._makeGlyph = function(glyphCode, data) {
-            var glyph = new Glyph()
-              , i,l, command
+        _p._addGlyph = function(fontInstance, glyphCode, data) {
+            var glyphInstance = fontInstance.addNewChild('glyph', -1)
+              , i,l
               ;
             // TODO: there are some needed properties, like
             // width, before, after
@@ -89,22 +86,20 @@ define([
             // and why some parts are properties. The reasoning is yet not
             // clear. I expect it becoming more obvious what to do when
             // I can toy around a bit.
-            this._setDataToGlyphNode(glyph, glyphCode, data);
+            this._setDataToGlyphInstance(glyphInstance, glyphCode, data);
 
-            if(data.children) for(i=0,l=data.children.length;i<l;i++) {
-                command = this._makeCommand(data.children[i]);
-                glyph.add(command);
-            }
+            if(data.children) for(i=0,l=data.children.length;i<l;i++)
+                this._addCommand(glyphInstance, data.children[i]);
 
-            return glyph;
+            return glyphInstance;
         };
 
         _p._drawFont = function() {
-            var glyphCode, glyph;
-            this._setDataToNode(this._font, this._fontData);
+            var glyphCode;
+            this._setDataToInstance(this._font, this._fontData);
             for (glyphCode in this._glyphData) {
                 try {
-                    glyph = this._makeGlyph(glyphCode, this._glyphData[glyphCode]);
+                    this._addGlyph(this._font, glyphCode, this._glyphData[glyphCode]);
                 }
                 catch(error) {
                     if(!(error instanceof GlyphIDMissingError))
@@ -115,7 +110,6 @@ define([
                     console.warn(error);
                     continue;
                 }
-                this._font.add(glyph);
             }
         };
 

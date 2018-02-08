@@ -1,3 +1,4 @@
+//jshint esversion:6
 define([
     './_Node'
   , './Glyph'
@@ -7,8 +8,8 @@ define([
 ) {
     "use strict";
 
-    function Font() {
-        Parent.call(this);
+    function Font(...args) {
+        Parent.call(this,...args);
     }
     var _p = Font.prototype = Object.create(Parent.prototype);
     _p.constructor = Font;

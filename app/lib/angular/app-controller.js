@@ -7,7 +7,7 @@ define([], function() {
         // CPSUIPanel. Likeley, there wil be another CPS-UI-Panel Controller
         // later, that controls which BEOM elements are displayed
         this.cpsController = cpsController;
-        this.scene = cpsController.rootNode.scene;
+        this.scene = cpsController.rootNode.cpsGet('scene');
     }
 
     AppController.$inject = ['$scope', 'cpsController'];

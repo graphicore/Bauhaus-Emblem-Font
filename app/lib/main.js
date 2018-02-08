@@ -1,3 +1,4 @@
+// jshint esversion:6
 define([
     'BEF/errors'
   , 'require/domReady'
@@ -9,8 +10,9 @@ define([
   , 'CPSController'
   , 'Atem-CPS/CPS/RuleController'
   , 'Atem-CPS/CPS/SelectorEngine'
+  , 'Atem-CPS/OMAController'
   , 'Atem-Pen-Case/pens/SVGPen'
-  , 'BEF/BEOM/Root'
+  , 'BEF/BEOM/types'
   , 'BEF/foresting/SceneBuilder'
   , 'BEF/foresting/FontInfo'
   , 'angular'
@@ -30,8 +32,9 @@ define([
   , CPSController
   , RuleController
   , SelectorEngine
+  , OMAController
   , SVGPen
-  , Root
+  , treeNodesTypes
   , SceneBuilder
   , FontInfo
   , angular
@@ -309,17 +312,21 @@ define([
         this.rawIO = io;
         this._cpsFile = cpsFile;
 
-        this.selectorEngine = new SelectorEngine();
+        let selectorEngine = new SelectorEngine();
         this.ruleController = new RuleController(this.io, cpsDir
                         , cpsTools.initializePropertyValue
-                        , this.selectorEngine.selectorEngine
+                        , selectorEngine
                         );
+
         // For a new project, the cps file should be probably empty.
         // But maybe, there can be some kind of minimal useable CPS file
         // Probably doing even less than the circle font.
         // This will take a cps library dir, to be added to the project.
-        this.controller = new CPSController( this.ruleController
-                                    , Root.factory, this.selectorEngine);
+
+        this.omaController = new OMAController(CPSController
+                                    , treeNodesTypes, this.ruleController);
+
+        this.rootInstance = null;
 
         this.scene = null;
         this.builder = null;
@@ -330,14 +337,15 @@ define([
     _p.constructor = Project;
 
     _p.init = function() {
-        this.controller.rootNode.attachData('cpsFile', this._cpsFile);
+        this.rootInstance  = this.omaController.createAsRoot('root');
+        this.rootInstance.attachData('cpsFile', this._cpsFile);
         // todo: move main() FontBuilder stuff here s...
 
         var fontData = staticIO.readFile(false, 'project/font.yaml')
-          , root = this.controller.rootNode
-          , fontInfo = FontInfo.fromYAML(root.font, fontData)
+          , root = this.rootInstance
+          , fontInfo = FontInfo.fromYAML(root.cpsGet('font'), fontData)
           ;
-        this.scene = root.scene;
+        this.scene = root.cpsGet('scene');
         this.scenebuilder = new SceneBuilder(fontInfo, this.scene);
     };
 
@@ -347,10 +355,12 @@ define([
           , root
           , fontInfo
           ;
-        this.controller.rootNode.loadTree(data);
-        root = this.controller.rootNode;
-        fontInfo = new FontInfo(root.font);
-        this.scene = root.scene;
+        // FIXME: looks now broken!
+        // used to be: this.controller.rootNode.loadTree(data);
+        this.rootInstance.loadTree(data);
+        root = this.rootInstance;
+        fontInfo = new FontInfo(root.cpsGet('font'));
+        this.scene = root.cpsGet('scene');
         this.scenebuilder = new SceneBuilder(fontInfo, this.scene);
     };
 
@@ -359,7 +369,9 @@ define([
         var data, yamlString;
         // save cps files
         this.ruleController.saveChangedRules(false);
-        data = this.controller.rootNode.dumpTree();
+        // FIXME: looks now broken!
+        // used to be: data = this.controller.rootNode.dumpTree();
+        data = this.rootInstance.dumpTree();
         yamlString = yaml.safeDump(data);
         this.io.writeFile(false, 'project.yaml', yamlString);
     };
@@ -465,7 +477,7 @@ define([
           , dragIndicatorService = new DragIndicatorService()
           ;
         angularApp.constant('cpsTools', cpsTools);
-        angularApp.constant('cpsController', project.controller);
+        angularApp.constant('cpsController', project.rootInstance.rootAPI.controller);
         angularApp.constant('ruleController', project.ruleController);
         angularApp.constant('dragDataService', dragDataService);
         angularApp.constant('dragIndicatorService', dragIndicatorService);
@@ -506,19 +518,20 @@ define([
         // Add a local storage fs? would be nice to have.
 
         var project = newProject();
-        //temp_bootstrapUI(project);
+        temp_bootstrapUI(project);
 
-        // zips the project
-        zipProject(project).then(function(zipBlob) {
-            // a way to start a download.
-            // download links are preferred though!
-            // window.open(URL.createObjectURL(zipBlob));
-
-            // round tripping. This is pretty stupid here, but the best
-            // way to see if we can load a zipped project, and a good way
-            // to debug.
-            loadProject(zipBlob).then(temp_bootstrapUI);
-        });
+    // FIXME:zip round tripping
+    //    // zips the project
+    //    zipProject(project).then(function(zipBlob) {
+    //        // a way to start a download.
+    //        // download links are preferred though!
+    //        // window.open(URL.createObjectURL(zipBlob));
+    //
+    //        // round tripping. This is pretty stupid here, but the best
+    //        // way to see if we can load a zipped project, and a good way
+    //        // to debug.
+    //        loadProject(zipBlob).then(temp_bootstrapUI);
+    //    });
     }
 
     return domReady.bind(null, main);
