@@ -10,8 +10,7 @@
     "type": "git",
     "url": "https://github.com/graphicore/Bauhaus-Emblem-Font"
   },
-  "keywords": [
-  ],
+  "keywords": [],
   "author": "Lasse Fister <commander@graphicore.de>",
   "license": "GPL-3.0",
   "bugs": {
@@ -19,12 +18,14 @@
   },
   "homepage": "https://github.com/graphicore/Bauhaus-Emblem-Font",
   "devDependencies": {
-    "bower": "*"
+    "bower": "^1.8.13"
   },
   "dependencies": {
     "commander": "git://github.com/graphicore/commander.js.git#atem-integration",
     "express": "^4.13.4",
     "helmsman": "^1.0.3",
+    "less": "^4.1.3",
+    "angular": "1.5.3",
     "lie": "^3.0.2",
     "requirejs": "^2.2.0"
   }

@@ -351,7 +351,7 @@ define([
 
     _p.load = function() {
         var yamlString = this.io.readFile(false, 'project.yaml')
-          , data = yaml.safeLoad(yamlString)
+          , data = yaml.load(yamlString)
           , root
           , fontInfo
           ;
@@ -372,7 +372,7 @@ define([
         // FIXME: looks now broken!
         // used to be: data = this.controller.rootNode.dumpTree();
         data = this.rootInstance.dumpTree();
-        yamlString = yaml.safeDump(data);
+        yamlString = yaml.dump(data);
         this.io.writeFile(false, 'project.yaml', yamlString);
     };
 
