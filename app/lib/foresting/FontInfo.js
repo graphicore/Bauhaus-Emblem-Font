@@ -132,7 +132,7 @@ define([
     _p.cosntructor = FontInfo;
 
     function fromYAML(font, str) {
-        var fontData = yaml.safeLoad(str);
+        var fontData = yaml.load(str);
         new Builder(font, fontData, FontInfo.prototype.notDefGlyph);
         return new FontInfo(font);
     }
