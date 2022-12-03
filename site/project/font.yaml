@@ -1,0 +1,752 @@
+# font
+# properties:
+# classes:
+# id:
+glyphs:
+  " ":
+    id: space
+    properties:
+        width: .8
+        before: 0
+        after: 0
+    children: []
+  "\n":
+    id: br
+    properties:
+        width: 0
+        before: 0
+        after: 0
+    children: []
+  notDef:
+    id: notDef
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: lineTo
+            coord: p4_1
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+  A:
+    id: A
+    properties:
+        width: 1.4
+        before: 0
+        after: 0
+        topCenter: Vector p4_0:x (width * .5)
+        bottomRight: Vector p0_0:x width
+        # NOTE: In the projection to polar coordinates, these do not really
+        # match the diagonals. In main.cps is a rule that does the same
+        # calculation live for the actually rendered glyphs.
+        # Look there at  @namespace("glyph.ref_A")
+        intersectionLeft: p0_0 + (topCenter - p0_0) * 0.25
+        intersectionRight: bottomRight + (topCenter - bottomRight) * 0.25
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: parent:topCenter
+        - properties:
+            cmd: lineTo
+            coord: parent:bottomRight
+        - properties:
+            cmd: moveTo
+            coord: parent:intersectionLeft
+        - properties:
+            cmd: arcTo
+            coord: parent:intersectionRight
+            largeArcFlag: 0
+            sweepFlag: 1
+  B:
+    id: B
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: moveTo
+            coord: p2_0
+        - properties:
+            cmd: arcTo
+            coord: p2_1
+            largeArcFlag: 0
+            sweepFlag: 1
+  C:
+    id: C
+    properties:
+        width: .7
+        before: .1
+        after: .1
+        rightBottom: Vector 0 width
+        rightTop: Vector 1 width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: parent:rightBottom
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: parent:rightTop
+            largeArcFlag: 0
+            sweepFlag: 1
+  D:
+    id: D
+    properties:
+        width: 1
+        before: .1
+        after: .1
+        h_width: width * 0.7
+        bottomRight: Vector 0 h_width
+        topRight: Vector 1 h_width
+        rightBottom: Vector p1_0:x width
+        rightTop: Vector p3_0:x width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: parent:topRight
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: parent:rightTop
+        - properties:
+            cmd: lineTo
+            coord: parent:rightBottom
+        - properties:
+            cmd: lineTo
+            coord: parent:bottomRight
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+  E:
+    id: E
+    properties:
+        width: .7
+        before: .1
+        after: .1
+        topRight: Vector 1 width
+        centerRight: Vector p2_0:x (width * .85)
+        bottomRight: Vector 0 width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: parent:bottomRight
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: parent:topRight
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: moveTo
+            coord: p2_0
+        - properties:
+            cmd: arcTo
+            coord: parent:centerRight
+            largeArcFlag: 0
+            sweepFlag: 1
+  F:
+    id: F
+    properties:
+        width: .7
+        before: .1
+        after: .1
+        topRight: Vector 1 width
+        centerRight: Vector p2_0:x (width * .85)
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: parent:topRight
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: moveTo
+            coord: p2_0
+        - properties:
+            cmd: arcTo
+            coord: parent:centerRight
+            largeArcFlag: 0
+            sweepFlag: 1
+  G:
+    id: G
+    properties:
+        width: 1
+        before: .1
+        after: .1
+        start: Vector p2_0:x (width * 0.4)
+    children:
+        - properties:
+            cmd: moveTo
+            coord: parent:start
+        - properties:
+            cmd: arcTo
+            coord: p2_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+  H:
+    id: H
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: moveTo
+            coord: p2_0
+        - properties:
+            cmd: arcTo
+            coord: p2_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: moveTo
+            coord: p0_1
+        - properties:
+            cmd: lineTo
+            coord: p4_1
+  I:
+    id: I
+    properties:
+        width: 0
+        before: .13
+        after: .13
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+  J:
+    id: J
+    properties:
+        width: .7
+        before: .1
+        after: .1
+        rightBottom: Vector 0 width
+        rightTop: Vector p4_0:x width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p1_0
+        - properties:
+            cmd: lineTo
+            coord: p0_0
+        - properties:
+            cmd: arcTo
+            coord: parent:rightBottom
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: parent:rightTop
+  K:
+    id: K
+    properties:
+        width: 1
+        before: .1
+        after: .1
+        rightTop: Vector p4_0:x 0.8
+        centerRight: Vector p2_0:x 0.6
+        centerMiddle: Vector p2_0:x 0.3
+        rightBottom : p0_1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: moveTo
+            coord: p2_0
+        - properties:
+            cmd: arcTo
+            coord: parent:centerRight
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: parent:rightBottom
+        - properties:
+            cmd: moveTo
+            coord: parent:centerMiddle
+        - properties:
+            cmd: lineTo
+            coord: parent:rightTop
+  L:
+    id: L
+    properties:
+        width: .8
+        before: .1
+        after: .1
+        rightBottom: Vector 0 width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: p0_0
+        - properties:
+            cmd: arcTo
+            coord: parent:rightBottom
+            largeArcFlag: 0
+            sweepFlag: 1
+  M:
+    id: M
+    properties:
+        width: 1.3
+        before: .1
+        after: .1
+        centerBottom: Vector p0_0:x (width * .5)
+        topRight: Vector p4_0:x width
+        bottomRight: Vector p0_0:x width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: parent:centerBottom
+        - properties:
+            cmd: lineTo
+            coord: parent:topRight
+        - properties:
+            cmd: lineTo
+            coord: parent:bottomRight
+  N:
+    id: N
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+        - properties:
+            cmd: lineTo
+            coord: p4_1
+  O:
+    id: O
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+  P:
+    id: P
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p2_1
+        - properties:
+            cmd: arcTo
+            coord: p2_0
+            largeArcFlag: 0
+            sweepFlag: 0
+  Q:
+    id: Q
+    properties:
+        width: 1
+        before: .1
+        after: .1
+        tailTop: Vector p2_0:x (width * 0.5)
+        tailBottom: Vector p0_0:x (width * 0.5)
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p1_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p1_1
+        - properties:
+            cmd: arcTo
+            coord: p1_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: moveTo
+            coord: parent:tailTop
+        - properties:
+            cmd: lineTo
+            coord: parent:tailBottom
+        - properties:
+            cmd: arcTo
+            coord: p0_1
+            largeArcFlag: 0
+            sweepFlag: 1
+  R:
+    id: R
+    properties:
+        width: 1.3
+        before: .1
+        after: .1
+        tailTop: Vector p2_0:x (width * 0.62)
+        tailBottom: Vector p0_0:x width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p2_1
+        - properties:
+            cmd: arcTo
+            coord: p2_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: moveTo
+            coord: parent:tailTop
+        - properties:
+            cmd: lineTo
+            coord: parent:tailBottom
+  S:
+    id: S
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_1
+        - properties:
+            cmd: arcTo
+            coord: p4_0
+            largeArcFlag: 0
+            sweepFlag: 0
+        - properties:
+            cmd: lineTo
+            coord: p2_0
+        - properties:
+            cmd: arcTo
+            coord: p2_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+        - properties:
+            cmd: arcTo
+            coord: p0_0
+            largeArcFlag: 0
+            sweepFlag: 0
+  T:
+    id: T
+    properties:
+        width: 1.2
+        before: 0
+        after: 0
+        rightTop: Vector p4_0:x width
+        centerTop: Vector p4_0:x (width * 0.5)
+        centerBottom: Vector p0_0:x (width * 0.5)
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: parent:rightTop
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: moveTo
+            coord: parent:centerTop
+        - properties:
+            cmd: lineTo
+            coord: parent:centerBottom
+  U:
+    id: U
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: p0_0
+        - properties:
+            cmd: arcTo
+            coord: p0_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p4_1
+  V:
+    id: V
+    properties:
+        width: 1
+        before: 0
+        after: 0
+        bottomCenter: Vector p0_0:x (width*.5)
+        topRight: Vector p4_0:x width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: parent:bottomCenter
+        - properties:
+            cmd: lineTo
+            coord: parent:topRight
+  W:
+    id: W
+    properties:
+        width: 2.3
+        before: 0
+        after: 0
+        bottom1: Vector p0_0:x (width * .25)
+        topCenter: Vector p4_0:x (width * .5)
+        bottom2: Vector p0_0:x (width * .75)
+        topRight: Vector p4_0:x width
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: parent:bottom1
+        - properties:
+            cmd: lineTo
+            coord: parent:topCenter
+        - properties:
+            cmd: lineTo
+            coord: parent:bottom2
+        - properties:
+            cmd: lineTo
+            coord: parent:topRight
+  X:
+    id: X
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: p0_1
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: lineTo
+            coord: p4_1
+  Y:
+    id: Y
+    properties:
+        width: 1
+        before: .1
+        after: .1
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p0_0
+        - properties:
+            cmd: arcTo
+            coord: p0_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p4_1
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: lineTo
+            coord: p1_0
+        - properties:
+            cmd: arcTo
+            coord: p1_1
+            largeArcFlag: 0
+            sweepFlag: 1
+  Z:
+    id: Z
+    properties:
+        width: 1
+        before: 0
+        after: 0
+    children:
+        - properties:
+            cmd: moveTo
+            coord: p4_0
+        - properties:
+            cmd: arcTo
+            coord: p4_1
+            largeArcFlag: 0
+            sweepFlag: 1
+        - properties:
+            cmd: lineTo
+            coord: p0_0
+        - properties:
+            cmd: arcTo
+            coord: p0_1
+            largeArcFlag: 0
+            sweepFlag: 1
