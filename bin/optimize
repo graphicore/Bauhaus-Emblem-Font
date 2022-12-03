@@ -1,0 +1,97 @@
+#!/usr/bin/env node
+"use strict";
+
+exports.command = {
+    description: 'Export an optimized program lib as a single file\n'
+        + 'example:\n'
+        + '    $ ./bin/optimize app/project ./built-out.js'
+  , arguments: '[project_path] [out_file]'
+};
+
+
+if (require.main === module) {
+
+var requirejs = require('requirejs')
+  , configure = requirejs('./node-config')
+  , path = require('path')
+  , program = require('commander')
+  ;
+  ;
+
+program._name = path.basename(process.argv[1]).replace('-', ' ');
+program.arguments(exports.command.arguments)
+    .description(exports.command.description);
+
+const rconf = {};
+configure({config: (conf)=>Object.assign(rconf, conf)});
+configure(requirejs);
+
+function main(project_path, out_file){
+    console.log('main with:', 'project_path', project_path, 'out_file', out_file);
+
+    var browserConfigure = requirejs('./bower_components/Atem-RequireJS-Config/browserConfig')
+    const configuration = {}
+      , setup = {
+            baseUrl: rconf.baseUrl
+          , bowerPrefix: 'bower_components'
+          , paths: {
+                'BEF': './'
+            }
+
+        }
+      ;
+    browserConfigure(setup, {config: (conf)=>{
+            Object.assign(configuration, conf);
+    }});
+    var config = Object.assign({}, configuration, {
+
+        // name: 'main',
+        out: out_file
+
+
+      , name: setup.bowerPrefix + '/almond/almond'
+      , include: ['main']
+      , insertRequire: ['main']
+      //, wrap: true
+    });
+
+
+    // app/lib/bower_components/Atem-IO/lib/io/staticBrowserREST.js
+
+
+    //'Atem-IO': 'bower_components/Atem-IO/lib',
+
+    config.paths['Atem-IO/io/static'] = 'bower_components/Atem-IO/lib/io/staticBrowserREST';
+    //console.log('config', config);
+    //return;
+
+
+
+    //baseUrl: '.',
+    //name: 'path/to/almond',
+    //include: ['main'],
+    //insertRequire: ['main'],
+    //out: 'main-built.js',
+    // wrap: true
+
+
+
+
+    requirejs.optimize(config, function (buildResponse) {
+        console.log('requirejs.optimize! ) buildResponse:', buildResponse);
+        //buildResponse is just a text output of the modules
+        //included. Load the built file for the contents.
+        //Use config.out to get the optimized file contents.
+        //var contents = fs.readFileSync(config.out, 'utf8');
+    }, function(err) {
+        //optimization err callback
+        console.error('OPTIMIZATION ERROR:', err);
+        throw err;
+    });
+}
+
+program.action(main)
+program.parse(process.argv);
+
+
+}
